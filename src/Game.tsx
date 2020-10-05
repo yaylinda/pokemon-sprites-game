@@ -1,32 +1,49 @@
-import React from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
-import { GameEngine } from "react-native-game-engine";
-import Dot from './components/Dot';
-import { update } from './systems';
+import React, { useEffect } from 'react';
+import { StyleSheet, Dimensions, View, Text } from 'react-native';
 
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
 export default function Game() {
+    
+    useEffect(() => {
+        console.log()
+    }, []);
 
     return (
-        <GameEngine
-            style={styles.container}
-            systems={[update]}
-            entities={{
-                dot: { 
-                    position: [40, 200], 
-                    renderer: <Dot position={[40, 200]} radius={20} color="pink" /> 
-                },
-            }}>
+        <View style={styles.container}>
+            <View style={styles.header}>
 
-        </GameEngine>
-    );
+            </View>
+            <View style={styles.body}>
+
+            </View>
+            <View style={styles.footer}>
+
+            </View>
+        </View>
+    )
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#FFF"
-    }
+        backgroundColor: 'white',
+        width: '100%'
+    },
+    header: {
+        flex: 1,
+        maxHeight: HEIGHT * 0.2,
+        borderBottomColor: 'black',
+        borderBottomWidth: 1,
+    },
+    body: {
+        flex: 1,
+    },
+    footer: {
+        flex: 1,
+        maxHeight: HEIGHT * 0.2,
+        borderTopColor: 'black',
+        borderTopWidth: 1,
+    },
 });
