@@ -1,14 +1,28 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Dimensions, View, Text } from 'react-native';
+import Gameboard, { GameboardCellData } from './Gameboard';
 
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
 export default function Game() {
+
+    const [gameboardData, setGameboardData] = useState<GameboardCellData[][]>([]);
     
-    useEffect(() => {
-        console.log()
-    }, []);
+    const onCellPress = (row: number, column: number) => {
+        console.log(`[Game][onCellPress]
+            row: ${row}
+            column: ${column}
+        `);
+    }
+
+    const onCellLongPress = (row: number, column: number) => {
+        console.log(`[Game][onCellLongPress]
+            row: ${row}
+            column: ${column}
+        `);
+        
+    }
 
     return (
         <View style={styles.container}>
@@ -16,7 +30,12 @@ export default function Game() {
 
             </View>
             <View style={styles.body}>
-
+                <Gameboard 
+                    size={10} 
+                    data={gameboardData} 
+                    onCellPress={(row: number, cell: number) => onCellPress(row, cell)}
+                    onCellLongPress={(row: number, cell: number) => onCellLongPress(row, cell)}
+                />
             </View>
             <View style={styles.footer}>
 
@@ -34,7 +53,7 @@ const styles = StyleSheet.create({
     header: {
         flex: 1,
         maxHeight: HEIGHT * 0.2,
-        borderBottomColor: 'black',
+        borderBottomColor: 'gray',
         borderBottomWidth: 1,
     },
     body: {
@@ -43,7 +62,7 @@ const styles = StyleSheet.create({
     footer: {
         flex: 1,
         maxHeight: HEIGHT * 0.2,
-        borderTopColor: 'black',
+        borderTopColor: 'gray',
         borderTopWidth: 1,
     },
 });
