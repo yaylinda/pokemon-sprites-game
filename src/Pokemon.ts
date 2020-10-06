@@ -2509,3 +2509,14 @@ let POKEMON_BY_ID: { [id: string]: PokemonData } = {};
 pokemon_array.forEach((pokemonData: PokemonData) => POKEMON_BY_ID[pokemonData.id] = pokemonData);
 
 export default POKEMON_BY_ID;
+
+export const getRandomPokemon = (): { pokemonId: number, pokemonData: PokemonData, pokemonSprite: string } => {
+  const pokemonId: number = Math.floor(Math.random() * (151 - 1) ) + 1;
+
+  return {
+    pokemonId, 
+    pokemonData: POKEMON_BY_ID[pokemonId], 
+    pokemonSprite: `https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/sprites/${`${pokemonId}`.padStart(3, '0')}MS.png`,
+  };
+}
+
