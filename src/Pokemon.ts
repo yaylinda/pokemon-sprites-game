@@ -2510,12 +2510,18 @@ pokemon_array.forEach((pokemonData: PokemonData) => POKEMON_BY_ID[pokemonData.id
 
 export default POKEMON_BY_ID;
 
-export const getRandomPokemon = (): { pokemonId: number, pokemonData: PokemonData, pokemonSprite: string } => {
-  const pokemonId: number = Math.floor(Math.random() * (151 - 1) ) + 1;
+export const getRandomPokemon = (isBasic: boolean = false): { pokemonId: number, pokemonData: PokemonData, pokemonSprite: string } => {
+  let pokemonId: number;
+  let pokemonData: PokemonData;
+
+  do { 
+    pokemonId = Math.floor(Math.random() * (151 - 1) ) + 1;
+    pokemonData = POKEMON_BY_ID[pokemonId];
+  } while (isBasic && pokemonData.evolvesFrom)
 
   return {
     pokemonId, 
-    pokemonData: POKEMON_BY_ID[pokemonId], 
+    pokemonData, 
     pokemonSprite: `https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/sprites/${`${pokemonId}`.padStart(3, '0')}MS.png`,
   };
 }

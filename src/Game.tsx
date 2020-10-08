@@ -7,15 +7,18 @@ import { getRandomPokemon } from './Pokemon';
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
-const GAMEBOARD_SIZE: number = 10;
+const GAMEBOARD_NUM_ROWS = 8;
+const GAMBOARD_NUM_COLS = 8;
 
 export default function Game() {
 
-    const [gameboardData, setGameboardData] = useState<GameboardCellData[][]>([]);
+    const [gameBoardData, setGameBoardData] = useState<GameboardCellData[][]>([]);
+    const [endZoneData, setEndZoneData] = useState<GameboardCellData[]>([]);
 
     useEffect(() => {
         console.log(`[Game][useEffect]`);
-        setGameboardData([...Array(GAMEBOARD_SIZE)].map(e => Array(GAMEBOARD_SIZE).fill(new GameboardCellData())));
+        setGameBoardData([...Array(GAMEBOARD_NUM_ROWS)].map(e => Array(GAMBOARD_NUM_COLS).fill(new GameboardCellData())));
+        setEndZoneData(Array(GAMBOARD_NUM_COLS).fill(new GameboardCellData()));
     }, []);
 
     const onCellPress = (row: number, column: number) => {
@@ -23,42 +26,37 @@ export default function Game() {
             row: ${row}
             column: ${column}
         `);
-    }
 
-    const onCellLongPress = (row: number, column: number) => {
-        console.log(`[Game][onCellLongPress]
-            row: ${row}
-            column: ${column}
-        `);
+        const { pokemonId, pokemonData, pokemonSprite } = getRandomPokemon(true);
 
-        const { pokemonId, pokemonData, pokemonSprite } = getRandomPokemon();
-
-        console.log(`[Game][onCellLongPress] - random pokemon
+        console.log(`[Game][onCellPress] - random pokemon
             pokemonData: ${JSON.stringify(pokemonData)}
             pokemonSprite: ${pokemonSprite}
         `);
 
-        setGameboardData(produce(gameboardData, draft => {
-            draft[row][column] = new GameboardCellData(false, true, pokemonData, pokemonSprite);
+        setGameBoardData(produce(gameBoardData, draft => {
+            draft[row][column] = new GameboardCellData(pokemonData, pokemonSprite);
         }))
+    }
+
+    const onCellLongPress = (row: number, column: number) => {
+        console.log(`[Game][onCellPress]
+            row: ${row}
+            column: ${column}
+        `);
+
     }
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-
-            </View>
-            <View style={styles.body}>
-                <Gameboard 
-                    size={GAMEBOARD_SIZE} 
-                    data={gameboardData} 
-                    onCellPress={(row: number, cell: number) => onCellPress(row, cell)}
-                    onCellLongPress={(row: number, cell: number) => onCellLongPress(row, cell)}
-                />
-            </View>
-            <View style={styles.footer}>
-
-            </View>
+            <Gameboard
+                numRows={GAMEBOARD_NUM_ROWS}
+                numCols={GAMBOARD_NUM_COLS}
+                gameBoardData={gameBoardData}
+                endZoneData={endZoneData}
+                onCellPress={(row: number, cell: number) => onCellPress(row, cell)}
+                onCellLongPress={(row: number, cell: number) => onCellLongPress(row, cell)}
+            />
         </View>
     )
 }
@@ -67,21 +65,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'white',
-        width: '100%'
-    },
-    header: {
-        flex: 1,
-        maxHeight: HEIGHT * 0.2,
-        borderBottomColor: 'gray',
-        borderBottomWidth: 1,
-    },
-    body: {
-        flex: 1,
-    },
-    footer: {
-        flex: 1,
-        maxHeight: HEIGHT * 0.2,
-        borderTopColor: 'gray',
-        borderTopWidth: 1,
+        width: '100%',
+        justifyContent: 'center',
     },
 });
