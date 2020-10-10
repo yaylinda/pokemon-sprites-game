@@ -3,6 +3,7 @@ import { Dimensions, Image, Text, StyleSheet, TouchableOpacity, View } from 'rea
 import { get } from 'lodash';
 
 import { PokemonData } from './Pokemon';
+import { GameState, GameStateActions } from './Game';
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 const CELL_MARGIN_WIDTH = 4;
 const CELL_BORDER_WIDTH = 1;
@@ -17,7 +18,7 @@ export class GameboardCellData {
     pokemonSprite?: string;
 
     constructor(pokemonData?: PokemonData, pokemonSprite?: string) {
-        this.allowPress = false,
+        this.allowPress = false;
         this.allowLongPress = false;
         this.isPressed = false;
         this.isLongPressed = false;
@@ -30,19 +31,22 @@ const Gameboard = ({
     numRows,
     numCols,
     gameBoardData,
-    endZoneData,
+    gameState,
     onCellPress,
-    onCellLongPress
+    onCellLongPress,
+    gameStateActions,
 }: {
     numRows: number,
     numCols: number,
     gameBoardData: GameboardCellData[][],
-    endZoneData: GameboardCellData[],
+    gameState: GameState,
     onCellPress: any,
-    onCellLongPress: any
+    onCellLongPress: any,
+    gameStateActions?: GameStateActions,
 }) => {
 
-    const cellWidth: number = (WIDTH - (CELL_MARGIN_WIDTH * numCols * 2) - (CELL_BORDER_WIDTH * numCols * 2)) / numCols;
+    // const cellWidth: number = (WIDTH - (CELL_MARGIN_WIDTH * numCols * 2) - (CELL_BORDER_WIDTH * numCols * 2)) / numCols;
+    const cellWidth: number = (WIDTH - (CELL_BORDER_WIDTH * numCols * 2)) / numCols;
 
     const renderPokemonImage = (pokemonSprite: string) => {
         if (!pokemonSprite) return null;
@@ -59,22 +63,23 @@ const Gameboard = ({
         );
     }
 
-    const renderEndZone = () => {
-        return (
-            <View style={[styles.endZoneCell, { minHeight: cellWidth, maxHeight: cellWidth }]}>
-                { endZoneData.map(pokemon => renderPokemonImage(get(pokemon, 'pokemonSprite', '')))}
-            </View>
-        );
-    }
-
     const renderCell = (rowIndex: number, columnIndex: number) => {
         const cellData: GameboardCellData = gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] || new GameboardCellData();
-        const borderColor: string = cellData ? (cellData.isPressed ? 'green' : (cellData.isLongPressed ? 'blue' : 'gray')) : 'gray';
+        // const borderColor: string = cellData ? (cellData.isPressed ? 'green' : (cellData.isLongPressed ? 'blue' : 'gray')) : 'gray';
 
         return (
             <TouchableOpacity
                 key={`row_${rowIndex}_col_${columnIndex}`}
-                style={[styles.cell, { minWidth: cellWidth, maxWidth: cellWidth, minHeight: cellWidth, maxHeight: cellWidth, borderColor }]}
+                style={[
+                    styles.cell, {
+                        minWidth: cellWidth,
+                        maxWidth: cellWidth,
+                        minHeight: cellWidth,
+                        maxHeight: cellWidth,
+                        borderColor: 'lightgrey',
+                        borderRightWidth: columnIndex + 1 === numCols ? 1 : 0,
+                        borderBottomWidth: rowIndex + 1 === numRows ? 1 : 0,
+                    }]}
                 onPress={() => cellData.allowPress && onCellPress(rowIndex, columnIndex)}
                 onLongPress={() => cellData.allowLongPress && onCellLongPress(rowIndex, columnIndex)}
             >
@@ -83,22 +88,28 @@ const Gameboard = ({
         );
     }
 
-    const renderGameControls = () => {
-        return (
-            <View style={styles.gameControlsCell}>
-
-            </View>
-        );
+    const renderBottomSection = () => {
+        if (gameState && gameStateActions && gameStateActions[gameState]) {
+            return (
+                <View style={styles.bottomSection}>
+                    <View style={styles.actionsHeader}>
+                        <Text>{gameStateActions[gameState].headerText}</Text>
+                    </View>
+                    <View style={styles.actionsButtons}>
+                        {gameStateActions[gameState].buttons}
+                    </View>
+                </View>
+            );
+        }
     }
 
     return (
         <View style={styles.container}>
-            {
-                renderEndZone()
-            }
+            <View style={styles.topSection}>
+            </View>
             {
                 Array.from(Array(numRows).keys()).map(rowIndex => (
-                    <View key={`row_${rowIndex}`} style={[styles.row, { maxHeight: cellWidth }]}>
+                    <View key={`row_${rowIndex}`} style={[styles.row, { maxHeight: cellWidth, minHeight: cellWidth }]}>
                         {
                             Array.from(Array(numCols).keys()).map(columnIndex => renderCell(rowIndex, columnIndex,))
                         }
@@ -106,7 +117,7 @@ const Gameboard = ({
                 ))
             }
             {
-                renderGameControls()
+                renderBottomSection()
             }
         </View>
     );
@@ -115,43 +126,52 @@ const Gameboard = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        flexDirection: 'column',
         justifyContent: 'center'
     },
     row: {
         flex: 1,
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: CELL_MARGIN_WIDTH,
-        marginBottom: CELL_MARGIN_WIDTH,
     },
     cell: {
         flex: 1,
-        borderRadius: 5,
-        borderWidth: CELL_BORDER_WIDTH,
-        marginLeft: CELL_MARGIN_WIDTH,
-        marginRight: CELL_MARGIN_WIDTH,
+        borderLeftWidth: 1,
+        borderTopWidth: 1,
     },
-    endZoneCell: {
+    topSection: {
         flex: 1,
         flexDirection: 'row',
         justifyContent: 'space-evenly',
         borderRadius: 5,
         borderColor: 'gray',
-        borderWidth: CELL_BORDER_WIDTH,
+        borderWidth: 1,
         marginLeft: 10,
         marginRight: 10,
-        marginBottom: 5,
+        marginBottom: 10,
         marginTop: 25,
     },
-    gameControlsCell : {
-        flex: 1,
+    bottomSection: {
+        flex: 4,
+        flexDirection: 'column',
+        alignSelf: 'stretch',
         borderRadius: 5,
         borderColor: 'gray',
-        borderWidth: CELL_BORDER_WIDTH,
+        borderWidth: 1,
         marginLeft: 10,
         marginRight: 10,
         marginBottom: 10,
         marginTop: 10,
+    },
+    actionsHeader: {
+        borderBottomColor: 'gray',
+        borderBottomWidth: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    actionsButtons: {
+        flexDirection: 'column',
+        justifyContent: 'center',
     }
 });
 
