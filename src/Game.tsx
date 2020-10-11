@@ -4,12 +4,13 @@ import { Button, Icon, Slider } from 'react-native-elements';
 import { produce } from 'immer';
 import Gameboard, { GameboardCellData } from './Gameboard';
 import { getRandomPokemon } from './Pokemon';
+import { set } from 'immer/dist/internal';
 
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
-const GAMEBOARD_NUM_ROWS = 12;
-const GAMEBOARD_NUM_COLS = 12;
+const GAMEBOARD_NUM_ROWS = 10;
+const GAMEBOARD_NUM_COLS = 10;
 const STARTING_ENERGY = 5;
 const MAX_ENERGY = 10;
 
@@ -134,9 +135,9 @@ export default function Game() {
         console.log(`[Game][useEffect]`);
         // setGameBoardData([...Array(GAMEBOARD_NUM_ROWS)].map(e => Array(GAMBOARD_NUM_COLS).fill(new GameboardCellData())));
         const data = [];
-        for (let i=0; i<GAMEBOARD_NUM_ROWS; i++) {
+        for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
             const row = [];
-            for (let j=0; j<GAMEBOARD_NUM_COLS; j++) {
+            for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
                 row.push(new GameboardCellData());
             }
             data.push(row);
@@ -162,11 +163,11 @@ export default function Game() {
                 headerText: 'ATTACK',
                 buttons: [energySlider, confirmButton, undoButton],
             },
-            UNDO: {
+            UNDO: { // Rename to energy selection
                 headerText: '',
                 buttons: [],
             },
-            CONFIRM: {
+            CONFIRM: { // Rename to executing action
                 headerText: `Doing... ${executableGameAction}`,
                 buttons: [],
             }
@@ -184,23 +185,33 @@ export default function Game() {
             column: ${column}
         `);
 
-        const { pokemonId, pokemonData, pokemonSprite } = getRandomPokemon(true);
+        if (executableGameAction === 'SPAWN') {
+            const { pokemonId, pokemonData, pokemonSprite } = getRandomPokemon(true);
 
-        console.log(`[Game][onCellPress] - random pokemon
+            console.log(`[Game][onCellPress] - random pokemon
             pokemonData: ${JSON.stringify(pokemonData)}
             pokemonSprite: ${pokemonSprite}
         `);
 
-        setGameBoardData(produce(gameBoardData, draft => {
-            draft[row][column] = new GameboardCellData(pokemonData, pokemonSprite);
-            for (let i=0; i<GAMEBOARD_NUM_ROWS; i++) {
-                for (let j=0; j<GAMEBOARD_NUM_COLS; j++) {
-                    draft[i][j].allowPress = false;
-                    draft[i][j].isPotentialSpawn = false;
+            setGameBoardData(produce(gameBoardData, draft => {
+                draft[row][column] = new GameboardCellData(pokemonData, pokemonSprite);
+                for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
+                    for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
+                        draft[i][j].allowPress = false;
+                        draft[i][j].isPotentialSpawn = false;
+                    }
                 }
-            }
-        }))
+            }));
+
+            setGameState('SELECT_ACTION');
+            setAvailableEnergy(availableEnergy + 1);
+            // this means the end of one turn. so now it's is time for the opposition. it won't be a second player, or an autoplayer. 
+            // it will just be obsticles like covers, etc.the goal awalk aound the space of the board. spawn, and must go to respqned plaws to get it to join team.
+            // team as a whole will battle or attack the things thave comes up on the board when you amake your action actions. so the basiaclly just fight all of them
+            // try to step on each square
+        }
     }
+
 
     const onCellLongPress = (row: number, column: number) => {
         console.log(`[Game][onCellPress]

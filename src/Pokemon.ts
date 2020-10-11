@@ -20,6 +20,10 @@ export type PokemonBaseStats = {
   "Speed": number,
 };
 
+export type PokemonComputedStats = {
+  hpAttDefSum: number,
+}
+
 const pokemon_array: PokemonData[] = [{
   "id": 1,
   "name": "Bulbasaur",
