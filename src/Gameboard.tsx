@@ -14,16 +14,25 @@ export class GameboardCellData {
     isPressed: boolean;
     isLongPressed: boolean;
 
-    pokemonData?: PokemonData;
-    pokemonSprite?: string;
+    isPotentialSpawn: boolean;
+
+    content?: {
+        pokemonData: PokemonData;
+        pokemonSprite: string;
+    };
 
     constructor(pokemonData?: PokemonData, pokemonSprite?: string) {
         this.allowPress = false;
         this.allowLongPress = false;
         this.isPressed = false;
         this.isLongPressed = false;
-        this.pokemonData = pokemonData;
-        this.pokemonSprite = pokemonSprite;
+        this.isPotentialSpawn = false;
+
+        if (pokemonData && pokemonSprite) {
+            this.content = {
+                pokemonData, pokemonSprite
+            }
+        }
     }
 }
 
@@ -35,6 +44,7 @@ const Gameboard = ({
     onCellPress,
     onCellLongPress,
     gameStateActions,
+    availableEnergy,
 }: {
     numRows: number,
     numCols: number,
@@ -43,6 +53,7 @@ const Gameboard = ({
     onCellPress: any,
     onCellLongPress: any,
     gameStateActions?: GameStateActions,
+    availableEnergy: number,
 }) => {
 
     // const cellWidth: number = (WIDTH - (CELL_MARGIN_WIDTH * numCols * 2) - (CELL_BORDER_WIDTH * numCols * 2)) / numCols;
@@ -79,22 +90,46 @@ const Gameboard = ({
                         borderColor: 'lightgrey',
                         borderRightWidth: columnIndex + 1 === numCols ? 1 : 0,
                         borderBottomWidth: rowIndex + 1 === numRows ? 1 : 0,
+                        backgroundColor: cellData.isPotentialSpawn ? 'lightgreen' : 'white',
                     }]}
                 onPress={() => cellData.allowPress && onCellPress(rowIndex, columnIndex)}
                 onLongPress={() => cellData.allowLongPress && onCellLongPress(rowIndex, columnIndex)}
             >
-                { renderPokemonImage(cellData.pokemonSprite || '')}
+                { renderPokemonImage(cellData.content?.pokemonSprite || '')}
             </TouchableOpacity>
         );
+    }
+
+    const renderTopSection = () => {
+        if (gameState && gameStateActions && gameStateActions[gameState]) {
+            return (
+                <View style={styles.topSection}>
+                    <Text>{gameStateActions[gameState].headerText}</Text>
+                    <View style={styles.statsSection}>
+                        <View>
+                            <Text>Available Energy</Text>
+                            <Text>{availableEnergy}</Text>
+                        </View>
+                        <View style={styles.statsSeparator}/>
+                        <View>
+                            <Text>TODO</Text>
+                            <Text>TODO</Text>
+                        </View>
+                        <View style={styles.statsSeparator}/>
+                        <View>
+                            <Text>TODO</Text>
+                            <Text>TODO</Text>
+                        </View>
+                    </View>
+                </View>
+            );
+        }
     }
 
     const renderBottomSection = () => {
         if (gameState && gameStateActions && gameStateActions[gameState]) {
             return (
                 <View style={styles.bottomSection}>
-                    <View style={styles.actionsHeader}>
-                        <Text>{gameStateActions[gameState].headerText}</Text>
-                    </View>
                     <View style={styles.actionsButtons}>
                         {gameStateActions[gameState].buttons}
                     </View>
@@ -105,8 +140,9 @@ const Gameboard = ({
 
     return (
         <View style={styles.container}>
-            <View style={styles.topSection}>
-            </View>
+            {
+                renderTopSection()
+            }
             {
                 Array.from(Array(numRows).keys()).map(rowIndex => (
                     <View key={`row_${rowIndex}`} style={[styles.row, { maxHeight: cellWidth, minHeight: cellWidth }]}>
@@ -140,38 +176,44 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
     },
     topSection: {
-        flex: 1,
-        flexDirection: 'row',
+        flexDirection: 'column',
         justifyContent: 'space-evenly',
         borderRadius: 5,
-        borderColor: 'gray',
+        borderColor: 'lightgray',
         borderWidth: 1,
         marginLeft: 10,
         marginRight: 10,
         marginBottom: 10,
         marginTop: 25,
     },
+    statsSection: {
+        flexDirection: 'row',
+        justifyContent: 'space-evenly'
+    },
+    statsSeparator: {
+        borderWidth: 0.5,
+        borderColor: 'gray',
+        width: 1,
+    },
     bottomSection: {
-        flex: 4,
+        flex: 1,
         flexDirection: 'column',
         alignSelf: 'stretch',
-        borderRadius: 5,
-        borderColor: 'gray',
-        borderWidth: 1,
         marginLeft: 10,
         marginRight: 10,
         marginBottom: 10,
         marginTop: 10,
     },
     actionsHeader: {
-        borderBottomColor: 'gray',
-        borderBottomWidth: 1,
+        // borderBottomColor: 'gray',
+        // borderBottomWidth: 1,
         flexDirection: 'row',
         justifyContent: 'center',
     },
     actionsButtons: {
+        flex: 1,
         flexDirection: 'column',
-        justifyContent: 'center',
+        justifyContent: 'space-evenly',
     }
 });
 
