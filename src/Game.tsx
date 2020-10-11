@@ -19,6 +19,7 @@ export type ExecutableGameAction = 'SPAWN' | 'MOVE' | 'ATTACK';
 export type SelectedGameAction = ExecutableGameAction | 'UNDO' | 'CONFIRM';
 export type GameStateActions = { [gameState in GameState]: { headerText: string, buttons: any[] } };
 
+// TODO - take in game data as props from App.tsx
 export default function Game() {
 
     const [gameBoardData, setGameBoardData] = useState<GameboardCellData[][]>([]);
@@ -133,7 +134,9 @@ export default function Game() {
 
     useEffect(() => {
         console.log(`[Game][useEffect]`);
-        // setGameBoardData([...Array(GAMEBOARD_NUM_ROWS)].map(e => Array(GAMBOARD_NUM_COLS).fill(new GameboardCellData())));
+
+        // TODO - populate state from props
+
         const data = [];
         for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
             const row = [];

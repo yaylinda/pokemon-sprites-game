@@ -4,6 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import Game from './src/Game';
 
 export default function App() {
+
+  // TODO - load game data from AsyncStorage. pass as props to Game
+
   return (
     <View style={styles.container}>
       <Game />
