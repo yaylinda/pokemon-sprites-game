@@ -13,26 +13,16 @@ export class GameboardCellData {
     allowLongPress: boolean;
     isPressed: boolean;
     isLongPressed: boolean;
-
     isPotentialSpawn: boolean;
+    pokemonData?: PokemonData;
 
-    content?: {
-        pokemonData: PokemonData;
-        pokemonSprite: string;
-    };
-
-    constructor(pokemonData?: PokemonData, pokemonSprite?: string) {
+    constructor(pokemonData?: PokemonData) {
         this.allowPress = false;
         this.allowLongPress = false;
         this.isPressed = false;
         this.isLongPressed = false;
         this.isPotentialSpawn = false;
-
-        if (pokemonData && pokemonSprite) {
-            this.content = {
-                pokemonData, pokemonSprite
-            }
-        }
+        this.pokemonData = pokemonData;
     }
 }
 
@@ -95,7 +85,7 @@ const Gameboard = ({
                 onPress={() => cellData.allowPress && onCellPress(rowIndex, columnIndex)}
                 onLongPress={() => cellData.allowLongPress && onCellLongPress(rowIndex, columnIndex)}
             >
-                { renderPokemonImage(cellData.content?.pokemonSprite || '')}
+                { renderPokemonImage(cellData.pokemonData?.sprite_url || '')}
             </TouchableOpacity>
         );
     }

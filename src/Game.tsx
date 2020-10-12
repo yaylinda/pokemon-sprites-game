@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Dimensions, View, Text } from 'react-native';
-import { Button, Icon, Slider } from 'react-native-elements';
+import { Button, Icon, Overlay, Slider } from 'react-native-elements';
 import { produce } from 'immer';
 import Gameboard, { GameboardCellData } from './Gameboard';
-import { getRandomPokemon } from './Pokemon';
-import { set } from 'immer/dist/internal';
+import { getPokemonByStrengthAndType, PokemonData, PokemonType } from './Pokemon';
 
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
@@ -30,6 +29,9 @@ export default function Game() {
     const [availableEnergy, setAvailableEnergy] = useState<number>(STARTING_ENERGY);
     const [energyToUse, setEnergyToUse] = useState<number>(1);
 
+    const [showTypeSelectionModal, setShowTypeSelectionModal] = useState<boolean>(false);
+    const [typeToSpawn, setTypeToSpawn] = useState<PokemonType>('Water'); // TODO - change this to something different
+    
     const spawnButton = (
         <Button
             key="spawnButton"
@@ -120,7 +122,7 @@ export default function Game() {
 
     const energySlider = (
         <View key="energySlider">
-            <Text>How much energy do you want to use?</Text>
+            <Text>How much energy do you want to use? [{energyToUse}]</Text>
             <Slider
                 value={energyToUse}
                 onSlidingComplete={(value) => onEnergySliderUpdate(value)}
@@ -128,9 +130,15 @@ export default function Game() {
                 maximumValue={availableEnergy}
                 step={1}
             />
-            <Text>Energy to use: {energyToUse}</Text>
         </View>
     );
+
+    const pokemonType = (
+        // TODO - later, build out modal and picker to allow user to pick the ype
+        <View key="pokemonType">
+            <Text>Type: {typeToSpawn}</Text>
+        </View>
+    )
 
     useEffect(() => {
         console.log(`[Game][useEffect]`);
@@ -156,7 +164,7 @@ export default function Game() {
             },
             SPAWN: {
                 headerText: 'SPAWN',
-                buttons: [energySlider, confirmButton, undoButton],
+                buttons: [energySlider, pokemonType, confirmButton, undoButton],
             },
             MOVE: {
                 headerText: 'MOVE',
@@ -189,15 +197,14 @@ export default function Game() {
         `);
 
         if (executableGameAction === 'SPAWN') {
-            const { pokemonId, pokemonData, pokemonSprite } = getRandomPokemon(true);
+            const pokemon: PokemonData = getPokemonByStrengthAndType(energyToUse, MAX_ENERGY, typeToSpawn);
 
             console.log(`[Game][onCellPress] - random pokemon
-            pokemonData: ${JSON.stringify(pokemonData)}
-            pokemonSprite: ${pokemonSprite}
+            pokemon: ${JSON.stringify(pokemon)}
         `);
 
             setGameBoardData(produce(gameBoardData, draft => {
-                draft[row][column] = new GameboardCellData(pokemonData, pokemonSprite);
+                draft[row][column] = new GameboardCellData(pokemon);
                 for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
                     for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
                         draft[i][j].allowPress = false;
@@ -263,7 +270,7 @@ export default function Game() {
                     row: ${row}
                     col: ${col}
                 `);
-                if (!gameBoardData[row][col].content) {
+                if (!gameBoardData[row][col].pokemonData) {
                     potentialSpawnCells.add({ row, col });
                 }
             }
