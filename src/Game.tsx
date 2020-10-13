@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Dimensions, Image, View, Text, TouchableOpacity } from 'react-native';
-import { Button, Icon, Overlay, Slider } from 'react-native-elements';
 import { produce } from 'immer';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Button, Icon, Slider } from 'react-native-elements';
 import { getPokemonByStrengthAndType, PokemonData, PokemonType } from './Pokemon';
 
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
@@ -9,10 +9,11 @@ console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
 const CELL_MARGIN_WIDTH = 4;
 const CELL_BORDER_WIDTH = 1;
-const GAMEBOARD_NUM_ROWS = 10;
-const GAMEBOARD_NUM_COLS = 10;
+const GAMEBOARD_NUM_ROWS = 3;
+const GAMEBOARD_NUM_COLS = 3;
 const CELL_SIZE: number = (WIDTH - (CELL_BORDER_WIDTH * GAMEBOARD_NUM_COLS * 2)) / GAMEBOARD_NUM_COLS;
-const STARTING_ENERGY = 5;
+// const STARTING_ENERGY = 5;
+const STARTING_ENERGY = 10;
 const MAX_ENERGY = 10;
 
 class GameboardCellData {
@@ -21,15 +22,38 @@ class GameboardCellData {
     isPressed: boolean;
     isLongPressed: boolean;
     isPotentialSpawn: boolean;
-    pokemonData?: PokemonData;
+    pokemonData: PokemonData;
 
-    constructor(pokemonData?: PokemonData) {
+    constructor() {
         this.allowPress = false;
         this.allowLongPress = false;
         this.isPressed = false;
         this.isLongPressed = false;
         this.isPotentialSpawn = false;
-        this.pokemonData = pokemonData;
+        this.pokemonData = {
+            id: '',
+            name: '',
+            type_1: '',
+            type_2: '',
+            color: '',
+            ability_1: '',
+            ability_2: '',
+            ability_hidden: '',
+            generation: '',
+            legendary: '',
+            mega_evolution:'',
+            height: '',
+            weight: '',
+            hp: '',
+            attack: '',
+            defense: '',
+            special_attack: '',
+            special_defense: '',
+            speed: '',
+            total: '',
+            sprite_url: '',
+            filename: '',
+        };
     }
 }
 
@@ -147,7 +171,7 @@ export default function Game() {
             <Slider
                 value={energyToUse}
                 onSlidingComplete={(value) => onEnergySliderUpdate(value)}
-                minimumValue={0}
+                minimumValue={1}
                 maximumValue={availableEnergy}
                 step={1}
             />
@@ -204,14 +228,14 @@ export default function Game() {
                 buttons: [],
             }
         });
-    }, [energyToUse, executableGameAction])
+    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData])
 
     const onEnergySliderUpdate = (value: number) => {
         console.log(`[Game][onEnergySliderUpdate] - value: ${value}`);
         setEnergyToUse(value);
     }
 
-    const handleCellPress = (row: number, column: number) => {
+    const handleCellPress = useCallback((row: number, column: number) => {
         console.log(`[Game][handleCellPress]
             row: ${row}
             column: ${column}
@@ -224,12 +248,16 @@ export default function Game() {
         if (executableGameAction === 'SPAWN') {
             const pokemon: PokemonData = getPokemonByStrengthAndType(energyToUse, MAX_ENERGY, typeToSpawn);
 
-            console.log(`[Game][handleCellPress] - pokemon
-                pokemon: ${JSON.stringify(pokemon)}
+            console.log(`[Game][handleCellPress] - spawned ${pokemon.name}`);
+
+            
+            console.log(`[Game][handleCellPress] BEFORE *****************
+                gameBoardData: ${JSON.stringify(gameBoardData)}
             `);
 
+
             setGameBoardData(produce(gameBoardData, draft => {
-                draft[row][column] = new GameboardCellData(pokemon);
+                draft[row][column].pokemonData = pokemon;
                 for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
                     for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
                         draft[i][j].allowPress = false;
@@ -238,15 +266,19 @@ export default function Game() {
                 }
             }));
 
+            console.log(`[Game][handleCellPress] AFTER *******************
+                gameBoardData: ${JSON.stringify(gameBoardData)}
+            `);
+
             setGameState('SELECT_ACTION');
-            setAvailableEnergy(availableEnergy + 1);
+            // setAvailableEnergy(availableEnergy + 1);
             setEnergyToUse(1);
             // this means the end of one turn. so now it's is time for the opposition. it won't be a second player, or an autoplayer. 
             // it will just be obsticles like covers, etc.the goal awalk aound the space of the board. spawn, and must go to respqned plaws to get it to join team.
             // team as a whole will battle or attack the things thave comes up on the board when you amake your action actions. so the basiaclly just fight all of them
             // try to step on each square
         }
-    };
+    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData]);
 
 
     const handleCellLongPress = (row: number, column: number) => {
@@ -256,23 +288,20 @@ export default function Game() {
         `);
     }
 
-    const onGameActionButtonPress = (action: SelectedGameAction) => {
+    const onGameActionButtonPress = useCallback((action: SelectedGameAction) => {
         console.log(`[Game][onGameActionButtonPress]
             action: ${action}
         `);
 
-        if (action === 'SPAWN') {
+        if (['SPAWN', 'MOVE', 'ATTACK'].includes(action)) {
             setGameState(action);
-            setExecutableGameAction(action);
-        } else if (action === 'MOVE') {
-            setGameState(action);
-            setExecutableGameAction(action);
-        } else if (action === 'ATTACK') {
-            setGameState(action);
-            setExecutableGameAction(action);
+            setExecutableGameAction(action as ExecutableGameAction);
         } else if (action === 'CONFIRM') {
             console.log(`[Game][onGameActionButtonPress][action=confirm]
                 executableGameAction: ${executableGameAction}
+                energyToUse: ${energyToUse}
+                availableEnergy: ${availableEnergy}
+            
             `);
             setAvailableEnergy(availableEnergy - energyToUse);
             setGameState('CONFIRM');
@@ -280,9 +309,9 @@ export default function Game() {
         } else { // UNDO
             setGameState('SELECT_ACTION');
         }
-    }
+    }, [executableGameAction, availableEnergy, energyToUse]);
 
-    const executeAction = () => {
+    const executeAction = useCallback(() => {
         console.log(`[Game][executeAction][action=${executableGameAction}]`);
 
         if (executableGameAction === 'SPAWN') {
@@ -296,7 +325,7 @@ export default function Game() {
                     row: ${row}
                     col: ${col}
                 `);
-                if (!gameBoardData[row][col].pokemonData) {
+                if (!gameBoardData[row][col].pokemonData.name) {
                     potentialSpawnCells.add({ row, col });
                 }
             }
@@ -304,12 +333,18 @@ export default function Game() {
             console.log(`[Game][executeAction][action=SPAWN]
             potentialSpawnCells: ${potentialSpawnCells.size}
             `);
+
+            
             setGameBoardData(produce(gameBoardData, (draft) => {
                 potentialSpawnCells.forEach((spawn) => {
                     draft[spawn.row][spawn.col].isPotentialSpawn = true;
                     draft[spawn.row][spawn.col].allowPress = true;
                 });
             }));
+
+            console.log(`[Game][executeAction][action=SPAWN] AFTER
+            gameBoardData: ${JSON.stringify(gameBoardData)}
+        `);
         } else if (executableGameAction === 'MOVE') {
 
         } else if (executableGameAction === 'ATTACK') {
@@ -317,7 +352,7 @@ export default function Game() {
         } else {
 
         }
-    }
+    }, [executableGameAction, gameBoardData, availableEnergy])
 
     const renderPokemonImage = (pokemonSprite: string) => {
         if (!pokemonSprite) return null;
@@ -335,9 +370,13 @@ export default function Game() {
     }
 
     const renderCell = (rowIndex: number, columnIndex: number) => {
-        const cellData: GameboardCellData = gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] || new GameboardCellData();
+        const cellData: GameboardCellData | null = gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] ? gameBoardData[rowIndex][columnIndex] : null;
         // const borderColor: string = cellData ? (cellData.isPressed ? 'green' : (cellData.isLongPressed ? 'blue' : 'gray')) : 'gray';
         
+        if (!cellData) {
+            return null;
+        }
+
         return (
             <TouchableOpacity
                 key={`row_${rowIndex}_col_${columnIndex}`}
@@ -356,7 +395,6 @@ export default function Game() {
                 onLongPress={() => cellData.allowLongPress && handleCellLongPress(rowIndex, columnIndex)}
             >
                 { renderPokemonImage(cellData.pokemonData?.sprite_url || '')}
-                {/* <Text>{cellData.allowPress ? 'T' : 'F'}</Text> */}
             </TouchableOpacity>
         );
     }
