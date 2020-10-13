@@ -1,22 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Dimensions, View, Text } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, Dimensions, Image, View, Text, TouchableOpacity } from 'react-native';
 import { Button, Icon, Overlay, Slider } from 'react-native-elements';
 import { produce } from 'immer';
-import Gameboard, { GameboardCellData } from './Gameboard';
 import { getPokemonByStrengthAndType, PokemonData, PokemonType } from './Pokemon';
 
 const { width: WIDTH, height: HEIGHT } = Dimensions.get("window");
 console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
+const CELL_MARGIN_WIDTH = 4;
+const CELL_BORDER_WIDTH = 1;
 const GAMEBOARD_NUM_ROWS = 10;
 const GAMEBOARD_NUM_COLS = 10;
+const CELL_SIZE: number = (WIDTH - (CELL_BORDER_WIDTH * GAMEBOARD_NUM_COLS * 2)) / GAMEBOARD_NUM_COLS;
 const STARTING_ENERGY = 5;
 const MAX_ENERGY = 10;
+
+class GameboardCellData {
+    allowPress: boolean;
+    allowLongPress: boolean;
+    isPressed: boolean;
+    isLongPressed: boolean;
+    isPotentialSpawn: boolean;
+    pokemonData?: PokemonData;
+
+    constructor(pokemonData?: PokemonData) {
+        this.allowPress = false;
+        this.allowLongPress = false;
+        this.isPressed = false;
+        this.isLongPressed = false;
+        this.isPotentialSpawn = false;
+        this.pokemonData = pokemonData;
+    }
+}
 
 export type GameState = 'SELECT_ACTION' | SelectedGameAction;
 export type ExecutableGameAction = 'SPAWN' | 'MOVE' | 'ATTACK';
 export type SelectedGameAction = ExecutableGameAction | 'UNDO' | 'CONFIRM';
 export type GameStateActions = { [gameState in GameState]: { headerText: string, buttons: any[] } };
+
 
 // TODO - take in game data as props from App.tsx
 export default function Game() {
@@ -24,14 +45,14 @@ export default function Game() {
     const [gameBoardData, setGameBoardData] = useState<GameboardCellData[][]>([]);
     const [gameState, setGameState] = useState<GameState>('SELECT_ACTION');
     const [gameStateActions, setGameStateActions] = useState<GameStateActions>();
-    const [executableGameAction, setExecutableGameAction] = useState<ExecutableGameAction>();
+    const [executableGameAction, setExecutableGameAction] = useState<ExecutableGameAction>('ATTACK');
 
     const [availableEnergy, setAvailableEnergy] = useState<number>(STARTING_ENERGY);
     const [energyToUse, setEnergyToUse] = useState<number>(1);
 
     const [showTypeSelectionModal, setShowTypeSelectionModal] = useState<boolean>(false);
     const [typeToSpawn, setTypeToSpawn] = useState<PokemonType>('Water'); // TODO - change this to something different
-    
+
     const spawnButton = (
         <Button
             key="spawnButton"
@@ -190,18 +211,22 @@ export default function Game() {
         setEnergyToUse(value);
     }
 
-    const onCellPress = (row: number, column: number) => {
-        console.log(`[Game][onCellPress]
+    const handleCellPress = (row: number, column: number) => {
+        console.log(`[Game][handleCellPress]
             row: ${row}
             column: ${column}
+            executableGameAction: ${executableGameAction}
+            typeToSpawn: ${typeToSpawn}
+            energyToUse: ${energyToUse}
+            availableEnergy: ${availableEnergy}
         `);
 
         if (executableGameAction === 'SPAWN') {
             const pokemon: PokemonData = getPokemonByStrengthAndType(energyToUse, MAX_ENERGY, typeToSpawn);
 
-            console.log(`[Game][onCellPress] - random pokemon
-            pokemon: ${JSON.stringify(pokemon)}
-        `);
+            console.log(`[Game][handleCellPress] - pokemon
+                pokemon: ${JSON.stringify(pokemon)}
+            `);
 
             setGameBoardData(produce(gameBoardData, draft => {
                 draft[row][column] = new GameboardCellData(pokemon);
@@ -215,16 +240,17 @@ export default function Game() {
 
             setGameState('SELECT_ACTION');
             setAvailableEnergy(availableEnergy + 1);
+            setEnergyToUse(1);
             // this means the end of one turn. so now it's is time for the opposition. it won't be a second player, or an autoplayer. 
             // it will just be obsticles like covers, etc.the goal awalk aound the space of the board. spawn, and must go to respqned plaws to get it to join team.
             // team as a whole will battle or attack the things thave comes up on the board when you amake your action actions. so the basiaclly just fight all of them
             // try to step on each square
         }
-    }
+    };
 
 
-    const onCellLongPress = (row: number, column: number) => {
-        console.log(`[Game][onCellPress]
+    const handleCellLongPress = (row: number, column: number) => {
+        console.log(`[Game][handleCellLongPress]
             row: ${row}
             column: ${column}
         `);
@@ -276,7 +302,7 @@ export default function Game() {
             }
 
             console.log(`[Game][executeAction][action=SPAWN]
-            potentialSpawnCells: ${JSON.stringify(potentialSpawnCells)}
+            potentialSpawnCells: ${potentialSpawnCells.size}
             `);
             setGameBoardData(produce(gameBoardData, (draft) => {
                 potentialSpawnCells.forEach((spawn) => {
@@ -291,21 +317,105 @@ export default function Game() {
         } else {
 
         }
-        setEnergyToUse(1);
+    }
+
+    const renderPokemonImage = (pokemonSprite: string) => {
+        if (!pokemonSprite) return null;
+
+        return (
+            <Image
+                style={{
+                    resizeMode: 'cover',
+                    height: CELL_SIZE - 2,
+                    width: CELL_SIZE - 2,
+                }}
+                source={{ uri: pokemonSprite }}
+            />
+        );
+    }
+
+    const renderCell = (rowIndex: number, columnIndex: number) => {
+        const cellData: GameboardCellData = gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] || new GameboardCellData();
+        // const borderColor: string = cellData ? (cellData.isPressed ? 'green' : (cellData.isLongPressed ? 'blue' : 'gray')) : 'gray';
+        
+        return (
+            <TouchableOpacity
+                key={`row_${rowIndex}_col_${columnIndex}`}
+                style={[
+                    styles.cell, {
+                        minWidth: CELL_SIZE,
+                        maxWidth: CELL_SIZE,
+                        minHeight: CELL_SIZE,
+                        maxHeight: CELL_SIZE,
+                        borderColor: 'lightgrey',
+                        borderRightWidth: columnIndex + 1 === GAMEBOARD_NUM_COLS ? 1 : 0,
+                        borderBottomWidth: rowIndex + 1 === GAMEBOARD_NUM_ROWS ? 1 : 0,
+                        backgroundColor: cellData.isPotentialSpawn ? 'lightgreen' : 'white',
+                    }]}
+                onPress={() => cellData.allowPress && handleCellPress(rowIndex, columnIndex)}
+                onLongPress={() => cellData.allowLongPress && handleCellLongPress(rowIndex, columnIndex)}
+            >
+                { renderPokemonImage(cellData.pokemonData?.sprite_url || '')}
+                {/* <Text>{cellData.allowPress ? 'T' : 'F'}</Text> */}
+            </TouchableOpacity>
+        );
+    }
+
+    const renderTopSection = () => {
+        if (gameState && gameStateActions && gameStateActions[gameState]) {
+            return (
+                <View style={styles.topSection}>
+                    <Text>{gameStateActions[gameState].headerText}</Text>
+                    <View style={styles.statsSection}>
+                        <View>
+                            <Text>Available Energy</Text>
+                            <Text>{availableEnergy}</Text>
+                        </View>
+                        <View style={styles.statsSeparator}/>
+                        <View>
+                            <Text>TODO</Text>
+                            <Text>TODO</Text>
+                        </View>
+                        <View style={styles.statsSeparator}/>
+                        <View>
+                            <Text>TODO</Text>
+                            <Text>TODO</Text>
+                        </View>
+                    </View>
+                </View>
+            );
+        }
+    }
+
+    const renderBottomSection = () => {
+        if (gameState && gameStateActions && gameStateActions[gameState]) {
+            return (
+                <View style={styles.bottomSection}>
+                    <View style={styles.actionsButtons}>
+                        {gameStateActions[gameState].buttons}
+                    </View>
+                </View>
+            );
+        }
     }
 
     return (
         <View style={styles.container}>
-            <Gameboard
-                numRows={GAMEBOARD_NUM_ROWS}
-                numCols={GAMEBOARD_NUM_COLS}
-                gameBoardData={gameBoardData}
-                gameState={gameState}
-                onCellPress={(row: number, cell: number) => onCellPress(row, cell)}
-                onCellLongPress={(row: number, cell: number) => onCellLongPress(row, cell)}
-                gameStateActions={gameStateActions}
-                availableEnergy={availableEnergy}
-            />
+            {
+                renderTopSection()
+            }
+            {
+                Array.from(Array(GAMEBOARD_NUM_ROWS).keys()).map(rowIndex => (
+                    <View key={`row_${rowIndex}`} style={[styles.row, { maxHeight: CELL_SIZE, minHeight: CELL_SIZE }]}>
+                        {
+                            Array.from(Array(GAMEBOARD_NUM_COLS).keys()).map(columnIndex => renderCell(rowIndex, columnIndex,))
+                        }
+                    </View>
+                ))
+            }
+            {
+                renderBottomSection()
+            }
         </View>
     )
 }
@@ -314,11 +424,61 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         flexDirection: 'column',
+        justifyContent: 'center',
         backgroundColor: 'white',
         width: '100%',
-        justifyContent: 'center',
     },
     actionButtonIcon: {
         marginRight: 10,
     },
+    row: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    cell: {
+        flex: 1,
+        borderLeftWidth: 1,
+        borderTopWidth: 1,
+    },
+    topSection: {
+        flexDirection: 'column',
+        justifyContent: 'space-evenly',
+        borderRadius: 5,
+        borderColor: 'lightgray',
+        borderWidth: 1,
+        marginLeft: 10,
+        marginRight: 10,
+        marginBottom: 10,
+        marginTop: 25,
+    },
+    statsSection: {
+        flexDirection: 'row',
+        justifyContent: 'space-evenly'
+    },
+    statsSeparator: {
+        borderWidth: 0.5,
+        borderColor: 'gray',
+        width: 1,
+    },
+    bottomSection: {
+        flex: 1,
+        flexDirection: 'column',
+        alignSelf: 'stretch',
+        marginLeft: 10,
+        marginRight: 10,
+        marginBottom: 10,
+        marginTop: 10,
+    },
+    actionsHeader: {
+        // borderBottomColor: 'gray',
+        // borderBottomWidth: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    actionsButtons: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'space-evenly',
+    }
 });

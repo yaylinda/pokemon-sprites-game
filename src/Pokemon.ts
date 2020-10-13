@@ -31,17 +31,17 @@ export type PokemonData = {
   filename: string,
 };
 
-const PokemonByTotalDesc: PokemonData[] = orderBy(PokemonRawData, ['total'], ['desc'])
+const PokemonByTotalAsc: PokemonData[] = orderBy(PokemonRawData, ['total'], ['asc'])
 
 export const getPokemonByStrengthAndType = (strength: number, maxStrength: number, type: PokemonType): PokemonData => {
-  const index = Math.floor(strength / maxStrength);
+  const index = Math.floor((strength / maxStrength) * PokemonByTotalAsc.length);
 
   console.log(`[Pokemon][getPokemonByStrengthAndType][strength=${strength}][maxStrength=${maxStrength}][type=${type}] - index: ${index}`);
 
   let offset: number = 0;
-  let pokemonAtIndexHigh: PokemonData = PokemonByTotalDesc[index];
-  let pokemonAtIndexLow: PokemonData = PokemonByTotalDesc[index]
-  let chosenPokemon: PokemonData = PokemonByTotalDesc[index];
+  let pokemonAtIndexHigh: PokemonData = PokemonByTotalAsc[index];
+  let pokemonAtIndexLow: PokemonData = PokemonByTotalAsc[index]
+  let chosenPokemon: PokemonData = PokemonByTotalAsc[index];
 
   while (true) {
     const indexHigh = index + offset;
@@ -50,20 +50,17 @@ export const getPokemonByStrengthAndType = (strength: number, maxStrength: numbe
     let foundHigh = false;
     let foundLow = false;
 
-    if (indexHigh <= PokemonByTotalDesc.length) {
-      pokemonAtIndexHigh = PokemonByTotalDesc[indexHigh]
-
+    if (indexHigh <= PokemonByTotalAsc.length) {
+      pokemonAtIndexHigh = PokemonByTotalAsc[indexHigh]
       if (pokemonAtIndexHigh.type_1 === type || pokemonAtIndexHigh.type_2 === type) {
         foundHigh = true;
-        break;
       }
     }
 
     if (indexLow >= 0) {
-      pokemonAtIndexLow = PokemonByTotalDesc[indexLow]
+      pokemonAtIndexLow = PokemonByTotalAsc[indexLow]
       if (pokemonAtIndexLow.type_1 === type || pokemonAtIndexLow.type_2 === type) {
         foundLow = true;
-        break;
       }
     }
 
@@ -71,9 +68,11 @@ export const getPokemonByStrengthAndType = (strength: number, maxStrength: numbe
       chosenPokemon = foundHigh ? pokemonAtIndexHigh : pokemonAtIndexLow;
       break;
     }
+
+    offset += 1;
   }
 
   return chosenPokemon;
 }
 
-export default PokemonByTotalDesc;
+export default PokemonByTotalAsc;
