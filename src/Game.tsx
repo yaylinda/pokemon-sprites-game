@@ -1,6 +1,7 @@
+import { Picker } from '@react-native-community/picker';
 import { produce } from 'immer';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Modal, StyleSheet, Text, TouchableHighlight, TouchableOpacity, View } from 'react-native';
 import { Button, Icon, Slider } from 'react-native-elements';
 import { getPokemonByStrengthAndType, PokemonData, PokemonType } from './Pokemon';
 
@@ -9,8 +10,8 @@ console.log(`[Game] - width: ${WIDTH}, height: ${HEIGHT}`);
 
 const CELL_MARGIN_WIDTH = 4;
 const CELL_BORDER_WIDTH = 1;
-const GAMEBOARD_NUM_ROWS = 3;
-const GAMEBOARD_NUM_COLS = 3;
+const GAMEBOARD_NUM_ROWS = 10;
+const GAMEBOARD_NUM_COLS = 10;
 const CELL_SIZE: number = (WIDTH - (CELL_BORDER_WIDTH * GAMEBOARD_NUM_COLS * 2)) / GAMEBOARD_NUM_COLS;
 // const STARTING_ENERGY = 5;
 const STARTING_ENERGY = 10;
@@ -41,7 +42,7 @@ class GameboardCellData {
             ability_hidden: '',
             generation: '',
             legendary: '',
-            mega_evolution:'',
+            mega_evolution: '',
             height: '',
             weight: '',
             hp: '',
@@ -130,43 +131,45 @@ export default function Game() {
         />
     );
 
-    const undoButton = (
-        <Button
+    const navigationButtons = (
+        <View style={styles.navigationButtonsSection}>
+            <Button
             key="undoButton"
-            title="Undo"
+            title="Back"
             type="outline"
             icon={
                 <Icon
                     type='font-awesome-5'
-                    name='undo'
+                    name='arrow-alt-circle-left'
                     color='#2089dc'
                     style={styles.actionButtonIcon}
                 />
             }
+            buttonStyle={{ width: 120 }}
             onPress={() => onGameActionButtonPress('UNDO')}
         />
-    );
-
-    const confirmButton = (
         <Button
             key="confirmButton"
-            title="Confirm"
+            title="Spawn"
+            iconRight
             icon={
                 <Icon
                     type='font-awesome-5'
-                    name='check-circle'
+                    name='arrow-alt-circle-right'
                     color='white'
-                    style={styles.actionButtonIcon}
+                    style={styles.actionButtonIconLeft}
                 />
             }
             disabled={energyToUse === 0}
-            buttonStyle={{ backgroundColor: 'green' }}
+            buttonStyle={{ backgroundColor: 'green', width: 120 }}
             onPress={() => onGameActionButtonPress('CONFIRM')}
         />
+        </View>
+        
     );
 
     const energySlider = (
-        <View key="energySlider">
+        <View key="energySlider" style={{ flex: 1 }}>
             <Text>How much energy do you want to use? [{energyToUse}]</Text>
             <Slider
                 value={energyToUse}
@@ -180,10 +183,65 @@ export default function Game() {
 
     const pokemonType = (
         // TODO - later, build out modal and picker to allow user to pick the ype
-        <View key="pokemonType">
-            <Text>Type: {typeToSpawn}</Text>
+        <View key="pokemonType" style={{ flex: 1 }}>
+            <Button
+                key="selectPokemonTypeButton"
+                title={`Type: ${typeToSpawn}`}
+                type="clear"
+                icon={
+                    <Icon
+                        type='font-awesome-5'
+                        name='question-circle'
+                        color='#2089dc'
+                        style={styles.actionButtonIcon}
+                    />
+                }
+                onPress={() => setShowTypeSelectionModal(true)}
+            />
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showTypeSelectionModal}
+            >
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalText}>Select a type to spawn?</Text>
+                        <Picker
+                            style={{ width: 200 }}
+                            selectedValue={typeToSpawn}
+                            onValueChange={(value, index) => setTypeToSpawn(value as PokemonType)}
+                        >
+                            <Picker.Item label="Grass" value="Grass" />
+                            <Picker.Item label="Poison" value="Poison" />
+                            <Picker.Item label="Water" value="Water" />
+                            <Picker.Item label="Fire" value="Fire" />
+                            <Picker.Item label="Flying" value="Flying" />
+                            <Picker.Item label="Bug" value="Bug" />
+                            <Picker.Item label="Ice" value="Ice" />
+                            <Picker.Item label="Normal" value="Normal" />
+                            <Picker.Item label="Electric" value="Electric" />
+                            <Picker.Item label="Ground" value="Ground" />
+                            <Picker.Item label="Fairy" value="Fairy" />
+                            <Picker.Item label="Dragon" value="Dragon" />
+                            <Picker.Item label="Psychic" value="Psychic" />
+                            <Picker.Item label="Rock" value="Rock" />
+                            <Picker.Item label="Fighting" value="Fighting" />
+                            <Picker.Item label="Steel" value="Steel" />
+                            <Picker.Item label="Ghost" value="Ghost" />
+                        </Picker>
+
+                        <TouchableHighlight
+                            style={{ ...styles.openButton, backgroundColor: '#2196F3' }}
+                            onPress={() => {
+                                setShowTypeSelectionModal(false);
+                            }}>
+                            <Text style={styles.textStyle}>Select</Text>
+                        </TouchableHighlight>
+                    </View>
+                </View>
+            </Modal>
         </View>
-    )
+    );
 
     useEffect(() => {
         console.log(`[Game][useEffect]`);
@@ -209,15 +267,15 @@ export default function Game() {
             },
             SPAWN: {
                 headerText: 'SPAWN',
-                buttons: [energySlider, pokemonType, confirmButton, undoButton],
+                buttons: [energySlider, pokemonType, navigationButtons],
             },
             MOVE: {
                 headerText: 'MOVE',
-                buttons: [energySlider, confirmButton, undoButton],
+                buttons: [energySlider, navigationButtons],
             },
             ATTACK: {
                 headerText: 'ATTACK',
-                buttons: [energySlider, confirmButton, undoButton],
+                buttons: [energySlider, navigationButtons],
             },
             UNDO: { // Rename to energy selection
                 headerText: '',
@@ -228,7 +286,7 @@ export default function Game() {
                 buttons: [],
             }
         });
-    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData])
+    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData, showTypeSelectionModal])
 
     const onEnergySliderUpdate = (value: number) => {
         console.log(`[Game][onEnergySliderUpdate] - value: ${value}`);
@@ -250,7 +308,7 @@ export default function Game() {
 
             console.log(`[Game][handleCellPress] - spawned ${pokemon.name}`);
 
-            
+
             console.log(`[Game][handleCellPress] BEFORE *****************
                 gameBoardData: ${JSON.stringify(gameBoardData)}
             `);
@@ -334,7 +392,7 @@ export default function Game() {
             potentialSpawnCells: ${potentialSpawnCells.size}
             `);
 
-            
+
             setGameBoardData(produce(gameBoardData, (draft) => {
                 potentialSpawnCells.forEach((spawn) => {
                     draft[spawn.row][spawn.col].isPotentialSpawn = true;
@@ -372,7 +430,7 @@ export default function Game() {
     const renderCell = (rowIndex: number, columnIndex: number) => {
         const cellData: GameboardCellData | null = gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] ? gameBoardData[rowIndex][columnIndex] : null;
         // const borderColor: string = cellData ? (cellData.isPressed ? 'green' : (cellData.isLongPressed ? 'blue' : 'gray')) : 'gray';
-        
+
         if (!cellData) {
             return null;
         }
@@ -409,12 +467,12 @@ export default function Game() {
                             <Text>Available Energy</Text>
                             <Text>{availableEnergy}</Text>
                         </View>
-                        <View style={styles.statsSeparator}/>
+                        <View style={styles.statsSeparator} />
                         <View>
                             <Text>TODO</Text>
                             <Text>TODO</Text>
                         </View>
-                        <View style={styles.statsSeparator}/>
+                        <View style={styles.statsSeparator} />
                         <View>
                             <Text>TODO</Text>
                             <Text>TODO</Text>
@@ -469,6 +527,9 @@ const styles = StyleSheet.create({
     actionButtonIcon: {
         marginRight: 10,
     },
+    actionButtonIconLeft: {
+        marginLeft: 10,
+    },
     row: {
         flex: 1,
         flexDirection: 'row',
@@ -518,5 +579,52 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'column',
         justifyContent: 'space-evenly',
-    }
+    },
+    navigationButtonsSection: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        // borderColor: 'black',
+        // borderWidth: 1,
+    },
+    // from modal doc
+    centeredView: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    modalView: {
+        margin: 20,
+        backgroundColor: 'white',
+        borderRadius: 20,
+        paddingVertical: 20,
+        paddingHorizontal: 40,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    openButton: {
+        marginTop: 10,
+        backgroundColor: '#F194FF',
+        borderRadius: 20,
+        padding: 10,
+        elevation: 2,
+    },
+    textStyle: {
+        color: 'white',
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    modalText: {
+        marginBottom: 10,
+        textAlign: 'center',
+    },
 });
