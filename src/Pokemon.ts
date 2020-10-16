@@ -31,16 +31,18 @@ export type PokemonData = {
   filename: string,
 };
 
-const PokemonByTotalAsc: PokemonData[] = orderBy(PokemonRawData, ['total'], ['asc'])
+const PokemonByTotalAsc: PokemonData[] = orderBy(PokemonRawData, ['total'], ['asc']);
 
 export const getPokemonByStrengthAndType = (strength: number, maxStrength: number, type: PokemonType): PokemonData => {
-  const index = Math.floor((strength / maxStrength) * PokemonByTotalAsc.length);
+  const index = Math.floor((strength / maxStrength) * PokemonByTotalAsc.length) + 1;
 
   console.log(`[Pokemon][getPokemonByStrengthAndType][strength=${strength}][maxStrength=${maxStrength}][type=${type}] - index: ${index}`);
 
+  console.log(`total pokemon: ${PokemonByTotalAsc.length}`);
+
   let offset: number = 0;
   let pokemonAtIndexHigh: PokemonData = PokemonByTotalAsc[index];
-  let pokemonAtIndexLow: PokemonData = PokemonByTotalAsc[index]
+  let pokemonAtIndexLow: PokemonData = PokemonByTotalAsc[index];
   let chosenPokemon: PokemonData = PokemonByTotalAsc[index];
 
   while (true) {
@@ -50,15 +52,24 @@ export const getPokemonByStrengthAndType = (strength: number, maxStrength: numbe
     let foundHigh = false;
     let foundLow = false;
 
-    if (indexHigh <= PokemonByTotalAsc.length) {
+    console.log(`indexHigh: ${indexHigh}`);
+    console.log(`indexLow: ${indexLow}`);
+    if (indexHigh < PokemonByTotalAsc.length - 1){
       pokemonAtIndexHigh = PokemonByTotalAsc[indexHigh]
+      console.log(`[Pokemon][getPokemonByStrengthAndType][HIGH]
+    pokemon: ${JSON.stringify(chosenPokemon)}
+  `);
+
       if (pokemonAtIndexHigh.type_1 === type || pokemonAtIndexHigh.type_2 === type) {
         foundHigh = true;
       }
     }
 
-    if (indexLow >= 0) {
+    if (indexLow >= 0 && indexLow < PokemonByTotalAsc.length - 1) { 
       pokemonAtIndexLow = PokemonByTotalAsc[indexLow]
+      console.log(`[Pokemon][getPokemonByStrengthAndType][LOW]
+    pokemon: ${JSON.stringify(chosenPokemon)}
+  `);
       if (pokemonAtIndexLow.type_1 === type || pokemonAtIndexLow.type_2 === type) {
         foundLow = true;
       }
@@ -71,6 +82,8 @@ export const getPokemonByStrengthAndType = (strength: number, maxStrength: numbe
 
     offset += 1;
   }
+
+
 
   return chosenPokemon;
 }

@@ -92,6 +92,7 @@ export default function Game() {
             }
             buttonStyle={{ backgroundColor: 'green' }}
             onPress={() => onGameActionButtonPress('SPAWN')}
+            disabled={availableEnergy === 0}
         />
     );
 
@@ -132,7 +133,7 @@ export default function Game() {
     );
 
     const navigationButtons = (
-        <View style={styles.navigationButtonsSection}>
+        <View key="navigationButtons" style={styles.navigationButtonsSection}>
             <Button
             key="undoButton"
             title="Back"
@@ -306,13 +307,7 @@ export default function Game() {
         if (executableGameAction === 'SPAWN') {
             const pokemon: PokemonData = getPokemonByStrengthAndType(energyToUse, MAX_ENERGY, typeToSpawn);
 
-            console.log(`[Game][handleCellPress] - spawned ${pokemon.name}`);
-
-
-            console.log(`[Game][handleCellPress] BEFORE *****************
-                gameBoardData: ${JSON.stringify(gameBoardData)}
-            `);
-
+            console.log(`[Game][handleCellPress] - spawned ${JSON.stringify(pokemon)}`);
 
             setGameBoardData(produce(gameBoardData, draft => {
                 draft[row][column].pokemonData = pokemon;
@@ -323,10 +318,6 @@ export default function Game() {
                     }
                 }
             }));
-
-            console.log(`[Game][handleCellPress] AFTER *******************
-                gameBoardData: ${JSON.stringify(gameBoardData)}
-            `);
 
             setGameState('SELECT_ACTION');
             // setAvailableEnergy(availableEnergy + 1);
@@ -370,7 +361,9 @@ export default function Game() {
     }, [executableGameAction, availableEnergy, energyToUse]);
 
     const executeAction = useCallback(() => {
-        console.log(`[Game][executeAction][action=${executableGameAction}]`);
+        console.log(`[Game][executeAction][action=${executableGameAction}]
+            energyToUse: ${energyToUse}
+        `);
 
         if (executableGameAction === 'SPAWN') {
             const potentialSpawnCells: Set<{ row: number, col: number }> = new Set<{ row: number, col: number }>();
@@ -399,10 +392,6 @@ export default function Game() {
                     draft[spawn.row][spawn.col].allowPress = true;
                 });
             }));
-
-            console.log(`[Game][executeAction][action=SPAWN] AFTER
-            gameBoardData: ${JSON.stringify(gameBoardData)}
-        `);
         } else if (executableGameAction === 'MOVE') {
 
         } else if (executableGameAction === 'ATTACK') {
@@ -410,7 +399,7 @@ export default function Game() {
         } else {
 
         }
-    }, [executableGameAction, gameBoardData, availableEnergy])
+    }, [executableGameAction, gameBoardData, availableEnergy, energyToUse])
 
     const renderPokemonImage = (pokemonSprite: string) => {
         if (!pokemonSprite) return null;
