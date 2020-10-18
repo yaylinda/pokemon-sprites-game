@@ -1,5 +1,6 @@
 import { Picker } from '@react-native-community/picker';
 import { produce } from 'immer';
+import { set } from 'immer/dist/internal';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Image, Modal, StyleSheet, Text, TouchableHighlight, TouchableOpacity, View } from 'react-native';
 import { Button, Icon, Slider } from 'react-native-elements';
@@ -51,6 +52,25 @@ const nextAction: { [currentAction in ExecutableGameAction]: FollowUpGameAction 
     ATTACK: 'DO_ATTACK',
 }
 
+/**
+ * Limit this to just starter pokemon, and only use their 3 types for some gameplay insteractions
+ * randomly spawn one starter/type, and then try to combine types to become stronger and fight for squares
+ * agains other types. but you have to play both sides. 
+ * or, you pick a color and play with 2 ai that get one of the other types, and you can fight
+ * goal could be to try to get as any squares as possible with you pokemon by moving around. 
+ * spawn # is how many of the pokemon to spawn. if you spawn duplicates, you will be able to evolve, once they are moved together.
+ * evolving makes them stronger all starters would be good to have because of the types that leds itself well to some game play mechnics
+ * 
+ * Goal is against 2 other plays, try to take over the board and eliminate others squares. idk something like that. will need to have some sort of
+ * actual pokemon battle, with the moves data too
+ * 
+ * okay so instead of using all the pokemon, just use the starters and give them some more data, like moves. and who evolves into who, and the teams they are in
+ * 
+ * might need to start over and have the user pick a color as the starting board. show opponents on board. left and right side of the bottom space
+ * i will show my stuff on top. it will be some stats like points, and the color of the team. might need to change the ui of how move selection should be done
+ * 
+ */
+
 // TODO - take in game data as props from App.tsx
 export default function Game() {
 
@@ -60,8 +80,10 @@ export default function Game() {
     const [gameState, setGameState] = useState<GameState>('SELECT_ACTION');
     const [executableGameAction, setExecutableGameAction] = useState<ExecutableGameAction>('ATTACK');
 
+    // energy
     const [availableEnergy, setAvailableEnergy] = useState<number>(STARTING_ENERGY);
     const [energyToUse, setEnergyToUse] = useState<number>(1);
+    const [enegeryForMoves, setEnergyForMoves] = useState<number>(0);
 
     // spawn pokemon type selection
     const [showTypeSelectionModal, setShowTypeSelectionModal] = useState<boolean>(false);
@@ -171,7 +193,7 @@ export default function Game() {
             <Text>How much energy do you want to use? [{energyToUse}]</Text>
             <Slider
                 value={energyToUse}
-                onSlidingComplete={(value) => onEnergySliderUpdate(value)}
+                onSlidingComplete={(value) => setEnergyToUse(value)}
                 minimumValue={1}
                 maximumValue={availableEnergy}
                 step={1}
@@ -294,11 +316,6 @@ export default function Game() {
         });
     }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData, showTypeSelectionModal])
 
-    const onEnergySliderUpdate = (value: number) => {
-        console.log(`[Game][onEnergySliderUpdate] - value: ${value}`);
-        setEnergyToUse(value);
-    }
-
     const handleCellPress = useCallback((row: number, column: number) => {
         const cellData = gameBoardData[row][column];
 
@@ -350,13 +367,14 @@ export default function Game() {
                 }
             }));
             setOriginalPokemonCell({ row: row, column: column});
+
         } else if (cellData.isPotentialMoveDestination && executableGameAction === 'MOVE') {
             console.log(`[Game][handleCellPress] - PRESS MOVE POKEMON HERE
                 originalPokemonCell: ${JSON.stringify(originalPokemonCell)}
             `);
 
             // TODO - this part is not working...................................
-            
+
             setGameBoardData(produce(gameBoardData, draft => {
                 for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
                     for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
@@ -366,14 +384,29 @@ export default function Game() {
                 if (originalPokemonCell && originalPokemonCell.row && originalPokemonCell.column) {
                     draft[row][column].pokemonData = JSON.parse(JSON.stringify(draft[originalPokemonCell.row][originalPokemonCell.column].pokemonData));
                     draft[originalPokemonCell.row][originalPokemonCell.column].pokemonData = undefined;
+                    console.log(`[Game][handleCellPress][resetting...]`)
                 }
             }));
+
+            console.log(`[Game][handleCellPress] - updated gameboard data!`);
+
+            setOriginalPokemonCell({ row: 0, column: 0});
+
+            const newEnergyForMoves = enegeryForMoves - 1;
+            setEnergyForMoves(newEnergyForMoves);
+
+            if (enegeryForMoves > 0) {
+                setGameBoardData(produce(gameBoardData,(draft) => {
+                    draft[row][column].isPotentialMove = true;
+                }));
+            }
+            console.log(`[Game][handleCellPress] - newEnergyForMoves=${newEnergyForMoves}`)
         } else if (cellData.pokemonData) {
             console.log(`[Game][handleCellPress] - CLICK POKEMON PREVIEW`);
             setShowPokemonPreviewInfo(true);
             setPokemonPreviewInfo({ pokemonData: cellData.pokemonData });
         }
-    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData, originalPokemonCell]);
+    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData, originalPokemonCell, enegeryForMoves]);
 
 
     const handleCellLongPress = (row: number, column: number) => {
@@ -409,6 +442,9 @@ export default function Game() {
         console.log(`[Game][executeAction][action=${executableGameAction}]
             energyToUse: ${energyToUse}
         `);
+
+        // this is use to count down how many moves we could do
+        setEnergyForMoves(energyToUse);
 
         if (executableGameAction === 'SPAWN') {
             const potentialSpawnCells: Set<{ row: number, col: number }> = new Set<{ row: number, col: number }>();
@@ -450,7 +486,7 @@ export default function Game() {
         } else {
 
         }
-    }, [executableGameAction, gameBoardData, availableEnergy, energyToUse])
+    }, [executableGameAction, gameBoardData, availableEnergy, energyToUse, originalPokemonCell])
 
     const renderPokemonImage = (pokemonSprite: string) => {
         if (!pokemonSprite) return null;
