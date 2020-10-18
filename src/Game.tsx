@@ -18,65 +18,61 @@ const STARTING_ENERGY = 10;
 const MAX_ENERGY = 10;
 
 class GameboardCellData {
-    allowPress: boolean;
-    allowLongPress: boolean;
     isPressed: boolean;
     isLongPressed: boolean;
     isPotentialSpawn: boolean;
-    pokemonData: PokemonData;
+    isPotentialMove: boolean;
+    isPotentialMoveDestination: boolean;
+    pokemonData?: PokemonData;
 
     constructor() {
-        this.allowPress = false;
-        this.allowLongPress = false;
         this.isPressed = false;
         this.isLongPressed = false;
         this.isPotentialSpawn = false;
-        this.pokemonData = {
-            id: '',
-            name: '',
-            type_1: '',
-            type_2: '',
-            color: '',
-            ability_1: '',
-            ability_2: '',
-            ability_hidden: '',
-            generation: '',
-            legendary: '',
-            mega_evolution: '',
-            height: '',
-            weight: '',
-            hp: '',
-            attack: '',
-            defense: '',
-            special_attack: '',
-            special_defense: '',
-            speed: '',
-            total: '',
-            sprite_url: '',
-            filename: '',
-        };
+        this.isPotentialMove = false;
+        this.isPotentialMoveDestination = false;
+        this.pokemonData = undefined;
     }
 }
 
-export type GameState = 'SELECT_ACTION' | SelectedGameAction;
-export type ExecutableGameAction = 'SPAWN' | 'MOVE' | 'ATTACK';
-export type SelectedGameAction = ExecutableGameAction | 'UNDO' | 'CONFIRM';
-export type GameStateActions = { [gameState in GameState]: { headerText: string, buttons: any[] } };
+type GameState = 'SELECT_ACTION' | SelectedGameAction;
+type ExecutableGameAction = 'SPAWN' | 'MOVE' | 'ATTACK';
+type FollowUpGameAction = 'DO_SPAWN' | 'DO_MOVE' | 'DO_ATTACK';
+type SelectedGameAction = ExecutableGameAction | FollowUpGameAction | 'UNDO';
+type GameStateActions = { [gameState in GameState]: { headerText: string, buttons: any[] } };
 
+type PokemonPreviewInfo = {
+    pokemonData: PokemonData;
+}
+
+const nextAction: { [currentAction in ExecutableGameAction]: FollowUpGameAction } = {
+    SPAWN: 'DO_SPAWN',
+    MOVE: 'DO_MOVE',
+    ATTACK: 'DO_ATTACK',
+}
 
 // TODO - take in game data as props from App.tsx
 export default function Game() {
 
     const [gameBoardData, setGameBoardData] = useState<GameboardCellData[][]>([]);
-    const [gameState, setGameState] = useState<GameState>('SELECT_ACTION');
     const [gameStateActions, setGameStateActions] = useState<GameStateActions>();
+
+    const [gameState, setGameState] = useState<GameState>('SELECT_ACTION');
     const [executableGameAction, setExecutableGameAction] = useState<ExecutableGameAction>('ATTACK');
 
     const [availableEnergy, setAvailableEnergy] = useState<number>(STARTING_ENERGY);
     const [energyToUse, setEnergyToUse] = useState<number>(1);
 
+    // spawn pokemon type selection
     const [showTypeSelectionModal, setShowTypeSelectionModal] = useState<boolean>(false);
     const [typeToSpawn, setTypeToSpawn] = useState<PokemonType>('Water'); // TODO - change this to something different
+
+    // pokemon preview info
+    const [showPokemonPreviewInfo, setShowPokemonPreviewInfo] = useState<boolean>(false);
+    const [pokemonPreviewInfo, setPokemonPreviewInfo] = useState<PokemonPreviewInfo>();
+
+    // pokemon to move starting location
+    const [originalPokemonCell, setOriginalPokemonCell] = useState<{row: number, column: number}>();
 
     const spawnButton = (
         <Button
@@ -111,6 +107,7 @@ export default function Game() {
             }
             // buttonStyle={{ backgroundColor: 'blue' }}
             onPress={() => onGameActionButtonPress('MOVE')}
+            disabled={availableEnergy === 0}
         />
     );
 
@@ -129,44 +126,44 @@ export default function Game() {
             }
             buttonStyle={{ backgroundColor: 'orange' }}
             onPress={() => onGameActionButtonPress('ATTACK')}
+            disabled={availableEnergy === 0}
         />
     );
 
     const navigationButtons = (
         <View key="navigationButtons" style={styles.navigationButtonsSection}>
             <Button
-            key="undoButton"
-            title="Back"
-            type="outline"
-            icon={
-                <Icon
-                    type='font-awesome-5'
-                    name='arrow-alt-circle-left'
-                    color='#2089dc'
-                    style={styles.actionButtonIcon}
-                />
-            }
-            buttonStyle={{ width: 120 }}
-            onPress={() => onGameActionButtonPress('UNDO')}
-        />
-        <Button
-            key="confirmButton"
-            title="Spawn"
-            iconRight
-            icon={
-                <Icon
-                    type='font-awesome-5'
-                    name='arrow-alt-circle-right'
-                    color='white'
-                    style={styles.actionButtonIconLeft}
-                />
-            }
-            disabled={energyToUse === 0}
-            buttonStyle={{ backgroundColor: 'green', width: 120 }}
-            onPress={() => onGameActionButtonPress('CONFIRM')}
-        />
+                key="undoButton"
+                title="Back"
+                type="outline"
+                icon={
+                    <Icon
+                        type='font-awesome-5'
+                        name='arrow-alt-circle-left'
+                        color='#2089dc'
+                        style={styles.actionButtonIcon}
+                    />
+                }
+                buttonStyle={{ width: 120 }}
+                onPress={() => onGameActionButtonPress('UNDO')}
+            />
+            <Button
+                key="confirmButton"
+                title="Confirm"
+                iconRight
+                icon={
+                    <Icon
+                        type='font-awesome-5'
+                        name='arrow-alt-circle-right'
+                        color='white'
+                        style={styles.actionButtonIconLeft}
+                    />
+                }
+                disabled={energyToUse === 0}
+                buttonStyle={{ backgroundColor: 'green', width: 120 }}
+                onPress={() => onGameActionButtonPress(nextAction[executableGameAction])}
+            />
         </View>
-        
     );
 
     const energySlider = (
@@ -206,7 +203,7 @@ export default function Game() {
             >
                 <View style={styles.centeredView}>
                     <View style={styles.modalView}>
-                        <Text style={styles.modalText}>Select a type to spawn?</Text>
+                        <Text style={styles.modalHeaderText}>Select a type to spawn?</Text>
                         <Picker
                             style={{ width: 200 }}
                             selectedValue={typeToSpawn}
@@ -236,7 +233,7 @@ export default function Game() {
                             onPress={() => {
                                 setShowTypeSelectionModal(false);
                             }}>
-                            <Text style={styles.textStyle}>Select</Text>
+                            <Text style={styles.modalButtonText}>Select</Text>
                         </TouchableHighlight>
                     </View>
                 </View>
@@ -270,22 +267,30 @@ export default function Game() {
                 headerText: 'SPAWN',
                 buttons: [energySlider, pokemonType, navigationButtons],
             },
+            DO_SPAWN: {
+                headerText: 'DO SPAWN',
+                buttons: [],
+            },
             MOVE: {
                 headerText: 'MOVE',
                 buttons: [energySlider, navigationButtons],
+            },
+            DO_MOVE: {
+                headerText: 'DO MOVE',
+                buttons: [],
             },
             ATTACK: {
                 headerText: 'ATTACK',
                 buttons: [energySlider, navigationButtons],
             },
+            DO_ATTACK: {
+                headerText: 'DO ATTACK',
+                buttons: [],
+            },
             UNDO: { // Rename to energy selection
                 headerText: '',
                 buttons: [],
             },
-            CONFIRM: { // Rename to executing action
-                headerText: `Doing... ${executableGameAction}`,
-                buttons: [],
-            }
         });
     }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData, showTypeSelectionModal])
 
@@ -295,6 +300,8 @@ export default function Game() {
     }
 
     const handleCellPress = useCallback((row: number, column: number) => {
+        const cellData = gameBoardData[row][column];
+
         console.log(`[Game][handleCellPress]
             row: ${row}
             column: ${column}
@@ -302,18 +309,19 @@ export default function Game() {
             typeToSpawn: ${typeToSpawn}
             energyToUse: ${energyToUse}
             availableEnergy: ${availableEnergy}
+            cellData: ${JSON.stringify(cellData)}
         `);
 
-        if (executableGameAction === 'SPAWN') {
+        if (cellData.isPotentialSpawn && executableGameAction === 'SPAWN') {
+            console.log(`[Game][handleCellPress] - SPAWNING NEW POKEMON`);
             const pokemon: PokemonData = getPokemonByStrengthAndType(energyToUse, MAX_ENERGY, typeToSpawn);
 
-            console.log(`[Game][handleCellPress] - spawned ${JSON.stringify(pokemon)}`);
+            console.log(`[Game][handleCellPress] - spawned ${pokemon.name}`);
 
             setGameBoardData(produce(gameBoardData, draft => {
                 draft[row][column].pokemonData = pokemon;
                 for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
                     for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
-                        draft[i][j].allowPress = false;
                         draft[i][j].isPotentialSpawn = false;
                     }
                 }
@@ -326,8 +334,46 @@ export default function Game() {
             // it will just be obsticles like covers, etc.the goal awalk aound the space of the board. spawn, and must go to respqned plaws to get it to join team.
             // team as a whole will battle or attack the things thave comes up on the board when you amake your action actions. so the basiaclly just fight all of them
             // try to step on each square
+        } else if (cellData.isPotentialMove && executableGameAction === 'MOVE') {
+            console.log(`[Game][handleCellPress] - PRESS POKEMON TO MOVE`);
+            setGameBoardData(produce(gameBoardData, draft => {
+                draft[row][column].isPotentialMove = false;
+                for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
+                    for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
+                        const cell = draft[i][j];
+                        if (!cell.pokemonData) {
+                            if ((i-1 === row && j-1 === column) || (i+1 === row && j+1 === column) || (i+1 === row && j-1 === column) || (i-1 === row && j+1 === column) || (i === row && j+1 === column) || (i === row && j-1 === column) || (i+1 === row && j === column) || (i-1 === row && j === column)) {
+                                cell.isPotentialMoveDestination = true;
+                            }
+                        }
+                    }
+                }
+            }));
+            setOriginalPokemonCell({ row: row, column: column});
+        } else if (cellData.isPotentialMoveDestination && executableGameAction === 'MOVE') {
+            console.log(`[Game][handleCellPress] - PRESS MOVE POKEMON HERE
+                originalPokemonCell: ${JSON.stringify(originalPokemonCell)}
+            `);
+
+            // TODO - this part is not working...................................
+            
+            setGameBoardData(produce(gameBoardData, draft => {
+                for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
+                    for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
+                        draft[i][j].isPotentialMoveDestination = false;
+                    }
+                }
+                if (originalPokemonCell && originalPokemonCell.row && originalPokemonCell.column) {
+                    draft[row][column].pokemonData = JSON.parse(JSON.stringify(draft[originalPokemonCell.row][originalPokemonCell.column].pokemonData));
+                    draft[originalPokemonCell.row][originalPokemonCell.column].pokemonData = undefined;
+                }
+            }));
+        } else if (cellData.pokemonData) {
+            console.log(`[Game][handleCellPress] - CLICK POKEMON PREVIEW`);
+            setShowPokemonPreviewInfo(true);
+            setPokemonPreviewInfo({ pokemonData: cellData.pokemonData });
         }
-    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData]);
+    }, [executableGameAction, typeToSpawn, energyToUse, availableEnergy, gameBoardData, originalPokemonCell]);
 
 
     const handleCellLongPress = (row: number, column: number) => {
@@ -345,15 +391,14 @@ export default function Game() {
         if (['SPAWN', 'MOVE', 'ATTACK'].includes(action)) {
             setGameState(action);
             setExecutableGameAction(action as ExecutableGameAction);
-        } else if (action === 'CONFIRM') {
+        } else if (['DO_SPAWN', 'DO_MOVE', 'DO_ATTACK'].includes(action)) {
             console.log(`[Game][onGameActionButtonPress][action=confirm]
                 executableGameAction: ${executableGameAction}
                 energyToUse: ${energyToUse}
                 availableEnergy: ${availableEnergy}
-            
             `);
             setAvailableEnergy(availableEnergy - energyToUse);
-            setGameState('CONFIRM');
+            setGameState(action);
             executeAction();
         } else { // UNDO
             setGameState('SELECT_ACTION');
@@ -376,7 +421,7 @@ export default function Game() {
                     row: ${row}
                     col: ${col}
                 `);
-                if (!gameBoardData[row][col].pokemonData.name) {
+                if (!gameBoardData[row][col].pokemonData) {
                     potentialSpawnCells.add({ row, col });
                 }
             }
@@ -385,15 +430,21 @@ export default function Game() {
             potentialSpawnCells: ${potentialSpawnCells.size}
             `);
 
-
             setGameBoardData(produce(gameBoardData, (draft) => {
                 potentialSpawnCells.forEach((spawn) => {
                     draft[spawn.row][spawn.col].isPotentialSpawn = true;
-                    draft[spawn.row][spawn.col].allowPress = true;
                 });
             }));
         } else if (executableGameAction === 'MOVE') {
-
+            setGameBoardData(produce(gameBoardData, (draft) => {
+                for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
+                    for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
+                        if (draft[i][j].pokemonData) {
+                            draft[i][j].isPotentialMove = true;
+                        }
+                    }
+                }
+            }));
         } else if (executableGameAction === 'ATTACK') {
 
         } else {
@@ -436,10 +487,10 @@ export default function Game() {
                         borderColor: 'lightgrey',
                         borderRightWidth: columnIndex + 1 === GAMEBOARD_NUM_COLS ? 1 : 0,
                         borderBottomWidth: rowIndex + 1 === GAMEBOARD_NUM_ROWS ? 1 : 0,
-                        backgroundColor: cellData.isPotentialSpawn ? 'lightgreen' : 'white',
+                        backgroundColor: cellData.isPotentialSpawn ? 'lightgreen' : (cellData.isPotentialMove || cellData.isPotentialMoveDestination ? 'lightblue' : 'white'),
                     }]}
-                onPress={() => cellData.allowPress && handleCellPress(rowIndex, columnIndex)}
-                onLongPress={() => cellData.allowLongPress && handleCellLongPress(rowIndex, columnIndex)}
+                onPress={() => handleCellPress(rowIndex, columnIndex)}
+                onLongPress={() => handleCellLongPress(rowIndex, columnIndex)}
             >
                 { renderPokemonImage(cellData.pokemonData?.sprite_url || '')}
             </TouchableOpacity>
@@ -484,6 +535,30 @@ export default function Game() {
         }
     }
 
+    const renderPokemonPreviewInfo = () => {
+        return (
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showPokemonPreviewInfo}
+            >
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalHeaderText}>{pokemonPreviewInfo?.pokemonData.name}</Text>
+
+                        <TouchableHighlight
+                            style={{ ...styles.openButton, backgroundColor: '#2196F3' }}
+                            onPress={() => {
+                                setShowPokemonPreviewInfo(false);
+                            }}>
+                            <Text style={styles.modalButtonText}>Close</Text>
+                        </TouchableHighlight>
+                    </View>
+                </View>
+            </Modal>
+        );
+    }
+
     return (
         <View style={styles.container}>
             {
@@ -500,6 +575,9 @@ export default function Game() {
             }
             {
                 renderBottomSection()
+            }
+            {
+                renderPokemonPreviewInfo()
             }
         </View>
     )
@@ -607,13 +685,14 @@ const styles = StyleSheet.create({
         padding: 10,
         elevation: 2,
     },
-    textStyle: {
+    modalButtonText: {
         color: 'white',
         fontWeight: 'bold',
         textAlign: 'center',
     },
-    modalText: {
+    modalHeaderText: {
         marginBottom: 10,
         textAlign: 'center',
+        fontWeight: 'bold',
     },
 });

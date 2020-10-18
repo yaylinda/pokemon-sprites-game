@@ -83,8 +83,6 @@ export const getPokemonByStrengthAndType = (strength: number, maxStrength: numbe
     offset += 1;
   }
 
-
-
   return chosenPokemon;
 }
 
