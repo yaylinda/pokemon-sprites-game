@@ -41,8 +41,8 @@ class GameboardCellData {
 
 type GameState =
     'PENDING_START_GAME' |
-    'SELECT_TYPE' | 'SELECT_ACTION' |
-    'SPAWN' | 'MOVE' | 'ATTACK' |
+    'SELECT_ACTION' |
+    // 'MOVE' | 'ATTACK' |
     'SELECT_ENERGY_FOR_SPAWN' | 'SELECT_SPAWN_LOCATION' |
     'SELECT_ENERGY_FOR_MOVE' | 'SELECT_MOVE_TARGET' | 'SELECT_MOVE_DESTINATION' |
     'SELECT_ENERGY_FOR_ATTACK' | 'SELECT_ATTACK_TARGET' | 'SELECT_ATTACK' |
@@ -79,13 +79,13 @@ export default function Game() {
 
     const [gameBoardData, setGameBoardData] = useState<GameboardCellData[][]>([]);
 
-    const [previousGameState, setPreviousGameState] = useState<GameState>();
+    const [previousGameState, setPreviousGameState] = useState<GameState>('PENDING_START_GAME');
     const [currentGameState, setCurrentGameState] = useState<GameState>('PENDING_START_GAME');
 
     const [gameStateConfigurations, setGameStateConfigurations] = useState<GameStateConfigurations>();
 
     // starter type
-    const [starterType, setStarterType] = useState<'Grass'|'Fire'|'Water'>();
+    const [starterType, setStarterType] = useState<'Grass' | 'Fire' | 'Water'>();
 
     // energy
     const [availableEnergy, setAvailableEnergy] = useState<number>(STARTING_ENERGY);
@@ -120,7 +120,7 @@ export default function Game() {
                 />
             }
             buttonStyle={{ backgroundColor: 'green' }}
-            onPress={() => onGameActionButtonPress('SPAWN')}
+            onPress={() => onGameActionButtonPress('SELECT_ENERGY_FOR_SPAWN')}
             disabled={availableEnergy === 0}
         />
     );
@@ -139,7 +139,7 @@ export default function Game() {
                 />
             }
             // buttonStyle={{ backgroundColor: 'blue' }}
-            onPress={() => onGameActionButtonPress('MOVE')}
+            onPress={() => onGameActionButtonPress('SELECT_ENERGY_FOR_MOVE')}
             disabled={availableEnergy === 0}
         />
     );
@@ -158,12 +158,12 @@ export default function Game() {
                 />
             }
             buttonStyle={{ backgroundColor: 'orange' }}
-            onPress={() => onGameActionButtonPress('ATTACK')}
+            onPress={() => onGameActionButtonPress('SELECT_ENERGY_FOR_ATTACK')}
             disabled={availableEnergy === 0}
         />
     );
 
-    const navigationButtons = (
+    const navigationButtons = (nextState: 'SELECT_SPAWN_LOCATION' | 'SELECT_MOVE_TARGET') => (
         <View key="navigationButtons" style={styles.navigationButtonsSection}>
             <Button
                 key="undoButton"
@@ -178,7 +178,7 @@ export default function Game() {
                     />
                 }
                 buttonStyle={{ width: 120 }}
-                onPress={() => onGameActionButtonPress('UNDO')}
+                onPress={() => onGameActionButtonPress('SELECT_ACTION')}
             />
             <Button
                 key="confirmButton"
@@ -194,7 +194,7 @@ export default function Game() {
                 }
                 disabled={energyToUse === 0}
                 buttonStyle={{ backgroundColor: 'green', width: 120 }}
-                onPress={() => onGameActionButtonPress('SPAWN')} // TODO - change to the correct action
+                onPress={() => onGameActionButtonPress(nextState)}
             />
         </View>
     );
@@ -301,34 +301,25 @@ export default function Game() {
                 inputs: [], // TODO
             },
 
-            // Initial game selections
-            SELECT_TYPE: {
-                headerText: 'Select a type',
-                inputs: [], // TODO
-            },
             SELECT_ACTION: {
                 headerText: 'Select an action',
                 inputs: [spawnButton, moveButton, attackButton],
             },
 
             // Main actions
-            SPAWN: {
-                headerText: 'SPAWN',
-                inputs: [energySlider, navigationButtons],
-            },
-            MOVE: {
-                headerText: 'MOVE',
-                inputs: [energySlider, navigationButtons],
-            },
-            ATTACK: {
-                headerText: 'ATTACK',
-                inputs: [energySlider, navigationButtons],
-            },
+            // MOVE: {
+            //     headerText: 'MOVE',
+            //     inputs: [energySlider, navigationButtons],
+            // },
+            // ATTACK: {
+            //     headerText: 'ATTACK',
+            //     inputs: [energySlider, navigationButtons],
+            // },
 
             // Follow-up actions for Spawn
             SELECT_ENERGY_FOR_SPAWN: {
                 headerText: 'SELECT_ENERGY_FOR_SPAWN',
-                inputs: [],
+                inputs: [energySlider, navigationButtons('SELECT_SPAWN_LOCATION')],
             },
             SELECT_SPAWN_LOCATION: {
                 headerText: 'SELECT_SPAWN_LOCATION',
@@ -475,14 +466,20 @@ export default function Game() {
         `);
     }
 
-    const onGameActionButtonPress = useCallback((gameState: GameState) => {
+    const onGameActionButtonPress = useCallback((newGameState: GameState) => {
         console.log(`[Game][onGameActionButtonPress]
-            currentGameState: ${gameState}
+            newGameState: ${newGameState}
         `);
 
-        if (gameState === 'PENDING_START_GAME') {
-            setPreviousGameState(gameState);
-            setCurrentGameState('SELECT_TYPE');
+        if (newGameState === 'SELECT_ACTION') {
+            setPreviousGameState('PENDING_START_GAME');
+            setCurrentGameState('SELECT_ACTION');
+        } else if (newGameState === 'SELECT_ENERGY_FOR_SPAWN') {
+            setPreviousGameState('SELECT_ACTION');
+            setCurrentGameState('SELECT_ENERGY_FOR_SPAWN');
+        } else if (newGameState === 'SELECT_SPAWN_LOCATION') {
+            setPreviousGameState('SELECT_ENERGY_FOR_SPAWN');
+            setCurrentGameState('SELECT_SPAWN_LOCATION');
         }
 
 
@@ -684,29 +681,38 @@ export default function Game() {
     }
 
     const renderStartGameAndStarterTypeSelection = () => {
+        console.log(`[Game][renderStartGameAndStarterTypeSelection]
+            starterType: ${starterType}
+        `);
         return (
             <View style={styles.startGameAndStartTypeSection}>
                 <View style={styles.selectTypeForm}>
                     <Text style={styles.starterTypeHeaderText}>Select a starter type</Text>
                     <View style={styles.selectTypeColorRow}>
-                        <TouchableOpacity 
-                            style={[styles.selectTypeOneColor, { backgroundColor: '#7c5', opacity: starterType === 'Grass' ? 0.5 : 1 }]} 
-                            onPress={() => onSelectStarterType('Grass')}
-                        >
-                            <Text style={styles.starterTypeText}>Grass</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.selectTypeOneColor, { backgroundColor: '#f42', opacity: starterType === 'Fire' ? 0.5 : 1}]} 
-                            onPress={() => onSelectStarterType('Fire')}
-                        >
-                            <Text style={styles.starterTypeText}>Fire</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.selectTypeOneColor, { backgroundColor: '#39f', opacity: starterType === 'Water' ? 0.5 : 1}]} 
-                            onPress={() => onSelectStarterType('Water')}
-                        >
-                            <Text style={styles.starterTypeText}>Water</Text>
-                        </TouchableOpacity>
+                        <View style={{ opacity: starterType === 'Grass' ? 1 : 0.5 }}>
+                            <TouchableOpacity
+                                style={[styles.selectTypeOneColor, { backgroundColor: '#7c5' }]}
+                                onPress={() => onSelectStarterType('Grass')}
+                            >
+                                <Text style={styles.starterTypeText}>Grass</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ opacity: starterType === 'Fire' ? 1 : 0.5 }}>
+                            <TouchableOpacity
+                                style={[styles.selectTypeOneColor, { backgroundColor: '#f42' }]}
+                                onPress={() => onSelectStarterType('Fire')}
+                            >
+                                <Text style={styles.starterTypeText}>Fire</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ opacity: starterType === 'Water' ? 1 : 0.5 }}>
+                            <TouchableOpacity
+                                style={[styles.selectTypeOneColor, { backgroundColor: '#39f' }]}
+                                onPress={() => onSelectStarterType('Water')}
+                            >
+                                <Text style={styles.starterTypeText}>Water</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
                 <Button
@@ -721,7 +727,7 @@ export default function Game() {
                         />
                     }
                     buttonStyle={{ backgroundColor: 'green' }}
-                    onPress={() => onGameActionButtonPress('PENDING_START_GAME')}
+                    onPress={() => onGameActionButtonPress('SELECT_ACTION')}
                     disabled={!starterType}
                 />
             </View>
@@ -735,7 +741,7 @@ export default function Game() {
                     <View>
                         {renderStartGameAndStarterTypeSelection()}
                     </View> :
-                    <View>
+                    <View style={styles.container}>
                         {renderTopSection()}
                         {renderGameboard()}
                         {renderBottomSection()}
@@ -875,7 +881,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         height: 40,
         width: 80,
-        justifyContent: 'center', 
+        justifyContent: 'center',
         alignItems: 'center'
     },
     starterTypeHeaderText: {
@@ -883,7 +889,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
     },
     starterTypeText: {
-        color: 'white', 
+        color: 'white',
         fontWeight: 'bold',
     },
     startGameAndStartTypeSection: {
