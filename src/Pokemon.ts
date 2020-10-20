@@ -1,5 +1,5 @@
 import { orderBy } from "lodash"
-import PokemonRawData from "./PokemonDataRaw";
+import POKEMON_STARTERS from "./PokemonStarters";
 
 export type PokemonType =
   "Grass" | "Poison" | "Water" | "Fire" | "Flying" | "Bug" |
@@ -29,61 +29,26 @@ export type PokemonData = {
   total: string,
   sprite_url: string,
   filename: string,
+  evolves_into?: string,
 };
 
-const PokemonByTotalAsc: PokemonData[] = orderBy(PokemonRawData, ['total'], ['asc']);
+export const getRandomStarterForType = (type: 'Grass' | 'Fire' | 'Water'): PokemonData => {
+  const generation = Math.floor((Math.random() * 8) + 1);
 
-export const getPokemonByStrengthAndType = (strength: number, maxStrength: number, type: PokemonType): PokemonData => {
-  const index = Math.floor((strength / maxStrength) * PokemonByTotalAsc.length) + 1;
-
-  console.log(`[Pokemon][getPokemonByStrengthAndType][strength=${strength}][maxStrength=${maxStrength}][type=${type}] - index: ${index}`);
-
-  console.log(`total pokemon: ${PokemonByTotalAsc.length}`);
-
-  let offset: number = 0;
-  let pokemonAtIndexHigh: PokemonData = PokemonByTotalAsc[index];
-  let pokemonAtIndexLow: PokemonData = PokemonByTotalAsc[index];
-  let chosenPokemon: PokemonData = PokemonByTotalAsc[index];
-
-  while (true) {
-    const indexHigh = index + offset;
-    const indexLow = index - offset;
-
-    let foundHigh = false;
-    let foundLow = false;
-
-    console.log(`indexHigh: ${indexHigh}`);
-    console.log(`indexLow: ${indexLow}`);
-    if (indexHigh < PokemonByTotalAsc.length - 1){
-      pokemonAtIndexHigh = PokemonByTotalAsc[indexHigh]
-      console.log(`[Pokemon][getPokemonByStrengthAndType][HIGH]
-    pokemon: ${JSON.stringify(chosenPokemon)}
+  console.log(`[Pokemon][getRandomStarterForType]
+    type=${type}
+    generation=${generation}
   `);
 
-      if (pokemonAtIndexHigh.type_1 === type || pokemonAtIndexHigh.type_2 === type) {
-        foundHigh = true;
-      }
-    }
-
-    if (indexLow >= 0 && indexLow < PokemonByTotalAsc.length - 1) { 
-      pokemonAtIndexLow = PokemonByTotalAsc[indexLow]
-      console.log(`[Pokemon][getPokemonByStrengthAndType][LOW]
-    pokemon: ${JSON.stringify(chosenPokemon)}
-  `);
-      if (pokemonAtIndexLow.type_1 === type || pokemonAtIndexLow.type_2 === type) {
-        foundLow = true;
-      }
-    }
-
-    if (foundHigh || foundLow) {
-      chosenPokemon = foundHigh ? pokemonAtIndexHigh : pokemonAtIndexLow;
-      break;
-    }
-
-    offset += 1;
-  }
-
-  return chosenPokemon;
+  return POKEMON_STARTERS.filter((pokemon) => 
+    parseInt(pokemon.generation) === generation && 
+    (pokemon.type_1 === type || pokemon.type_2 === type))[0];
 }
 
-export default PokemonByTotalAsc;
+export const getPokemonById = (id: string): PokemonData => {
+  console.log(`[Pokemon][getPokemonById]
+    id=${id}
+  `);
+
+  return POKEMON_STARTERS.filter((pokemon) => pokemon.id === id)[0];
+};
