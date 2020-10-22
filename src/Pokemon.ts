@@ -30,6 +30,9 @@ export type PokemonData = {
   sprite_url: string,
   filename: string,
   evolves_into?: string,
+
+  // Info used for game
+  turns_on_board?: number,
 };
 
 export const getRandomStarterForType = (type: 'Grass' | 'Fire' | 'Water'): PokemonData => {
@@ -40,9 +43,16 @@ export const getRandomStarterForType = (type: 'Grass' | 'Fire' | 'Water'): Pokem
     generation=${generation}
   `);
 
-  return POKEMON_STARTERS.filter((pokemon) => 
-    parseInt(pokemon.generation) === generation && 
-    (pokemon.type_1 === type || pokemon.type_2 === type))[0];
+  // Deep copy the pokemon
+  const pokemon = JSON.parse(
+    JSON.stringify(
+      POKEMON_STARTERS.filter((pokemon) => 
+        parseInt(pokemon.generation) === generation && 
+          (pokemon.type_1 === type || pokemon.type_2 === type))[0]));
+
+  pokemon.turns_on_board = 0;
+
+  return pokemon;
 }
 
 export const getPokemonById = (id: string): PokemonData => {

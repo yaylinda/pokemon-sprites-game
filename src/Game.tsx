@@ -21,21 +21,23 @@ type PokemonPreviewInfo = {
     pokemonData: PokemonData;
 }
 
+type StarterTypes = 'Grass' | 'Fire' | 'Water';
+
 class GameboardCellData {
     isPressed: boolean;
     isLongPressed: boolean;
-    isPotentialSpawn: boolean;
-    isPotentialMove: boolean;
+    isMoveTarget: boolean;
     isPotentialMoveDestination: boolean;
     pokemonData?: PokemonData;
+    ownedByType?: StarterTypes;
 
     constructor() {
         this.isPressed = false;
         this.isLongPressed = false;
-        this.isPotentialSpawn = false;
-        this.isPotentialMove = false;
+        this.isMoveTarget = false;
         this.isPotentialMoveDestination = false;
         this.pokemonData = undefined;
+        this.ownedByType = undefined; 
     }
 }
 
@@ -54,6 +56,12 @@ type GameStateConfigurations = {
         inputs: any[]
     }
 };
+
+const COLOR_BY_TYPE: { [type in StarterTypes] : string } = {
+    Grass: 'rgba(119, 204, 85, 0.2)',
+    Fire: 'rgba(255, 68, 34, 0.2)',
+    Water: 'rgba(51, 153, 255, 0.2)',
+}
 
 /**
  * Limit this to just starter pokemon, and only use their 3 types for some gameplay insteractions
@@ -85,7 +93,7 @@ export default function Game() {
     const [gameStateConfigurations, setGameStateConfigurations] = useState<GameStateConfigurations>();
 
     // starter type
-    const [starterType, setStarterType] = useState<'Grass' | 'Fire' | 'Water'>();
+    const [starterType, setStarterType] = useState<StarterTypes>();
 
     // energy
     const [availableEnergy, setAvailableEnergy] = useState<number>(STARTING_ENERGY);
@@ -213,68 +221,6 @@ export default function Game() {
         </View>
     );
 
-    // const pokemonType = (
-    //     // TODO - later, build out modal and picker to allow user to pick the ype
-    //     <View key="pokemonType" style={{ flex: 1 }}>
-    //         <Button
-    //             key="selectPokemonTypeButton"
-    //             title={`Type: ${typeToSpawn}`}
-    //             type="clear"
-    //             icon={
-    //                 <Icon
-    //                     type='font-awesome-5'
-    //                     name='question-circle'
-    //                     color='#2089dc'
-    //                     style={styles.actionButtonIcon}
-    //                 />
-    //             }
-    //             onPress={() => setShowTypeSelectionModal(true)}
-    //         />
-    //         <Modal
-    //             animationType="slide"
-    //             transparent={true}
-    //             visible={showTypeSelectionModal}
-    //         >
-    //             <View style={styles.centeredView}>
-    //                 <View style={styles.modalView}>
-    //                     <Text style={styles.modalHeaderText}>Select a type to spawn?</Text>
-    //                     <Picker
-    //                         style={{ width: 200 }}
-    //                         selectedValue={typeToSpawn}
-    //                         onValueChange={(value, index) => setTypeToSpawn(value as PokemonType)}
-    //                     >
-    //                         <Picker.Item label="Grass" value="Grass" />
-    //                         <Picker.Item label="Poison" value="Poison" />
-    //                         <Picker.Item label="Water" value="Water" />
-    //                         <Picker.Item label="Fire" value="Fire" />
-    //                         <Picker.Item label="Flying" value="Flying" />
-    //                         <Picker.Item label="Bug" value="Bug" />
-    //                         <Picker.Item label="Ice" value="Ice" />
-    //                         <Picker.Item label="Normal" value="Normal" />
-    //                         <Picker.Item label="Electric" value="Electric" />
-    //                         <Picker.Item label="Ground" value="Ground" />
-    //                         <Picker.Item label="Fairy" value="Fairy" />
-    //                         <Picker.Item label="Dragon" value="Dragon" />
-    //                         <Picker.Item label="Psychic" value="Psychic" />
-    //                         <Picker.Item label="Rock" value="Rock" />
-    //                         <Picker.Item label="Fighting" value="Fighting" />
-    //                         <Picker.Item label="Steel" value="Steel" />
-    //                         <Picker.Item label="Ghost" value="Ghost" />
-    //                     </Picker>
-
-    //                     <TouchableHighlight
-    //                         style={{ ...styles.openButton, backgroundColor: '#2196F3' }}
-    //                         onPress={() => {
-    //                             setShowTypeSelectionModal(false);
-    //                         }}>
-    //                         <Text style={styles.modalButtonText}>Select</Text>
-    //                     </TouchableHighlight>
-    //                 </View>
-    //             </View>
-    //         </Modal>
-    //     </View>
-    // );
-
     /**************************************************************************
      * Use Effects
      *************************************************************************/
@@ -330,7 +276,7 @@ export default function Game() {
             // Follow-up actions for Move
             SELECT_ENERGY_FOR_MOVE: {
                 headerText: 'SELECT_ENERGY_FOR_MOVE',
-                inputs: [],
+                inputs: [energySlider, navigationButtons('SELECT_MOVE_TARGET')],
             },
             SELECT_MOVE_TARGET: {
                 headerText: 'SELECT_MOVE_TARGET',
@@ -377,50 +323,55 @@ export default function Game() {
             previousGameState: ${previousGameState}
             energyToUse: ${energyToUse}
             availableEnergy: ${availableEnergy}
-            cellData: ${JSON.stringify(cellData)}
         `);
 
-        if (cellData.pokemonData) {
-            setPokemonPreviewInfo({ pokemonData: cellData.pokemonData });
-            setShowPokemonPreviewInfo(true);
+        if (currentGameState === 'SELECT_MOVE_TARGET' && cellData.pokemonData) {
+            setGameBoardData(produce(gameBoardData, (draft) => {
+                draft[row][column].isMoveTarget = true;
+
+                for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
+                    for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
+                        const cell = draft[i][j];
+                        if (!cell.pokemonData) {
+                            if ((i-1 === row && j-1 === column) || (i+1 === row && j+1 === column) || (i+1 === row && j-1 === column) || (i-1 === row && j+1 === column) || (i === row && j+1 === column) || (i === row && j-1 === column) || (i+1 === row && j === column) || (i-1 === row && j === column)) {
+                                cell.isPotentialMoveDestination = true;
+                            }
+                        }
+                    }
+                }
+            }));
+            setOriginalPokemonCell({ row: row, column: column});
+            setPreviousGameState('SELECT_MOVE_TARGET');
+            setCurrentGameState('SELECT_MOVE_DESTINATION');
+        } else if (currentGameState === 'SELECT_MOVE_DESTINATION' && cellData.isPotentialMoveDestination && originalPokemonCell) {
+
+            const pokemonData: PokemonData = JSON.parse(
+                JSON.stringify(
+                    gameBoardData[originalPokemonCell.row][originalPokemonCell.column].pokemonData));
+
+            setGameBoardData(produce(gameBoardData, (draft) => {
+                draft[row][column].pokemonData = pokemonData;
+                draft[row][column].ownedByType = pokemonData.type_1 as StarterTypes;
+                draft[originalPokemonCell.row][originalPokemonCell.column].pokemonData = undefined;
+                for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
+                    for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
+                        gameBoardData[i][j].isMoveTarget = false;
+                        gameBoardData[i][j].isPotentialMoveDestination = false;
+                    }
+                }
+            }));
+
+            const updatedEnergy = energyToUse - 1;
+            if (updatedEnergy === 0) {
+                setPreviousGameState('SELECT_MOVE_DESTINATION');
+                setCurrentGameState('SELECT_ACTION');
+                setEnergyToUse(1);
+            } else {
+                setPreviousGameState('SELECT_MOVE_DESTINATION');
+                setCurrentGameState('SELECT_MOVE_TARGET');
+                setEnergyToUse(updatedEnergy);
+            }
         }
-
-        // if (cellData.isPotentialSpawn && currentGameState === 'SELECT_SPAWN_LOCATION') {
-        //     console.log(`[Game][handleCellPress] - SPAWNING ${energyToUse} NEW POKEMON`);
-        //     const pokemon: PokemonData = getRandomStarterForType(starterType);
-
-        //     console.log(`[Game][handleCellPress] - spawned ${pokemon.name}`);
-
-        //     setGameBoardData(produce(gameBoardData, draft => {
-        //         draft[row][column].pokemonData = pokemon;
-        //         for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
-        //             for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
-        //                 draft[i][j].isPotentialSpawn = false;
-        //             }
-        //         }
-        //     }));
-
-        //     // this means the end of one turn. so now it's is time for the opposition. it won't be a second player, or an autoplayer. 
-        //     // it will just be obsticles like covers, etc.the goal awalk aound the space of the board. spawn, and must go to respqned plaws to get it to join team.
-        //     // team as a whole will battle or attack the things thave comes up on the board when you amake your action actions. so the basiaclly just fight all of them
-        //     // try to step on each square
-        // }
-        // } else if (cellData.isPotentialMove && executableGameAction === 'MOVE') {
-        //     console.log(`[Game][handleCellPress] - PRESS POKEMON TO MOVE`);
-        //     setGameBoardData(produce(gameBoardData, draft => {
-        //         draft[row][column].isPotentialMove = false;
-        //         for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
-        //             for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
-        //                 const cell = draft[i][j];
-        //                 if (!cell.pokemonData) {
-        //                     if ((i-1 === row && j-1 === column) || (i+1 === row && j+1 === column) || (i+1 === row && j-1 === column) || (i-1 === row && j+1 === column) || (i === row && j+1 === column) || (i === row && j-1 === column) || (i+1 === row && j === column) || (i-1 === row && j === column)) {
-        //                         cell.isPotentialMoveDestination = true;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }));
-        //     setOriginalPokemonCell({ row: row, column: column});
 
         // } else if (cellData.isPotentialMoveDestination && executableGameAction === 'MOVE') {
         //     console.log(`[Game][handleCellPress] - PRESS MOVE POKEMON HERE
@@ -468,6 +419,13 @@ export default function Game() {
             row: ${row}
             column: ${column}
         `);
+
+        const cellData = gameBoardData[row][column];
+
+        if (cellData.pokemonData) {
+            setPokemonPreviewInfo({ pokemonData: cellData.pokemonData });
+            setShowPokemonPreviewInfo(true);
+        }
     }
 
     const onGameActionButtonPress = useCallback((newGameState: GameState) => {
@@ -485,6 +443,12 @@ export default function Game() {
             setPreviousGameState('SELECT_ENERGY_FOR_SPAWN');
             setCurrentGameState('SPAWN');
             executeAction('SPAWN');
+        } else if (newGameState === 'SELECT_ENERGY_FOR_MOVE') {
+            setPreviousGameState('SELECT_ACTION');
+            setCurrentGameState('SELECT_ENERGY_FOR_MOVE');
+        } else if (newGameState === 'SELECT_MOVE_TARGET') {
+            setPreviousGameState('SELECT_ENERGY_FOR_MOVE');
+            setCurrentGameState('SELECT_MOVE_TARGET');
         }
     }, [currentGameState, previousGameState, availableEnergy, energyToUse]);
 
@@ -505,7 +469,7 @@ export default function Game() {
                     row: ${row}
                     col: ${col}
                 `);
-                if (!gameBoardData[row][col].pokemonData) {
+                if (!gameBoardData[row][col].pokemonData && !gameBoardData[row][col].ownedByType) {
                     potentialSpawnCells.add({ row, col });
                 }
             }
@@ -524,6 +488,7 @@ export default function Game() {
                         col: ${spawn.col}
                     `);
                     draft[spawn.row][spawn.col].pokemonData = pokemonData;
+                    draft[spawn.row][spawn.col].ownedByType = pokemonData.type_1 as StarterTypes;
                 });
             }));
 
@@ -532,17 +497,6 @@ export default function Game() {
             setCurrentGameState('SELECT_ACTION');
             setPreviousGameState('SPAWN');
         } 
-        // else if (executableGameAction === 'MOVE') {
-        //     setGameBoardData(produce(gameBoardData, (draft) => {
-        //         for (let i = 0; i < GAMEBOARD_NUM_ROWS; i++) {
-        //             for (let j = 0; j < GAMEBOARD_NUM_COLS; j++) {
-        //                 if (draft[i][j].pokemonData) {
-        //                     draft[i][j].isPotentialMove = true;
-        //                 }
-        //             }
-        //         }
-        //     }));
-        // }
     }, [currentGameState, previousGameState, gameBoardData, availableEnergy, energyToUse, originalPokemonCell])
 
     const onSelectStarterType = (type: 'Grass' | 'Fire' | 'Water') => {
@@ -551,6 +505,7 @@ export default function Game() {
         `);
         setStarterType(type);
     }
+
     /**************************************************************************
      * Render methods
      *************************************************************************/
@@ -561,9 +516,9 @@ export default function Game() {
         return (
             <Image
                 style={{
-                    resizeMode: 'cover',
-                    height: CELL_SIZE - 2,
-                    width: CELL_SIZE - 2,
+                    resizeMode: 'stretch',
+                    height: CELL_SIZE - 1,
+                    width: CELL_SIZE - 1,
                 }}
                 source={{ uri: pokemonSprite }}
             />
@@ -571,26 +526,40 @@ export default function Game() {
     }
 
     const renderCell = (rowIndex: number, columnIndex: number) => {
-        const cellData: GameboardCellData | null = gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] ? gameBoardData[rowIndex][columnIndex] : null;
+        const cellData: GameboardCellData | null = 
+            gameBoardData && gameBoardData[rowIndex] && gameBoardData[rowIndex][columnIndex] ? 
+                gameBoardData[rowIndex][columnIndex] :
+                null;
 
         if (!cellData) {
             return null;
         }
 
+        let cellColor = 'white';
+        if (cellData.isMoveTarget) {
+            cellColor = 'yellow';
+        } else if (cellData.isPotentialMoveDestination) {
+            cellColor = 'yellow';
+        } else if (cellData.ownedByType) {
+            cellColor = COLOR_BY_TYPE[cellData.ownedByType];
+        }
+
+        const cellStyle = {
+            ...styles.cell,
+            minWidth: CELL_SIZE,
+            maxWidth: CELL_SIZE,
+            minHeight: CELL_SIZE,
+            maxHeight: CELL_SIZE,
+            borderColor: 'lightgrey',
+            borderRightWidth: columnIndex + 1 === GAMEBOARD_NUM_COLS ? 1 : 0,
+            borderBottomWidth: rowIndex + 1 === GAMEBOARD_NUM_ROWS ? 1 : 0,
+            backgroundColor: cellColor,
+        }
+
         return (
             <TouchableOpacity
                 key={`row_${rowIndex}_col_${columnIndex}`}
-                style={[
-                    styles.cell, {
-                        minWidth: CELL_SIZE,
-                        maxWidth: CELL_SIZE,
-                        minHeight: CELL_SIZE,
-                        maxHeight: CELL_SIZE,
-                        borderColor: 'lightgrey',
-                        borderRightWidth: columnIndex + 1 === GAMEBOARD_NUM_COLS ? 1 : 0,
-                        borderBottomWidth: rowIndex + 1 === GAMEBOARD_NUM_ROWS ? 1 : 0,
-                        backgroundColor: cellData.isPotentialSpawn ? 'lightgreen' : (cellData.isPotentialMove || cellData.isPotentialMoveDestination ? 'lightblue' : 'white'),
-                    }]}
+                style={cellStyle}
                 onPress={() => handleCellPress(rowIndex, columnIndex)}
                 onLongPress={() => handleCellLongPress(rowIndex, columnIndex)}
             >
